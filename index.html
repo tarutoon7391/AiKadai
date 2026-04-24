@@ -43,6 +43,23 @@
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d');
 
+  // roundRect ポリフィル（未対応ブラウザ向け）
+  if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+      const radius = Math.min(r, w/2, h/2);
+      this.moveTo(x + radius, y);
+      this.lineTo(x + w - radius, y);
+      this.arcTo(x + w, y, x + w, y + radius, radius);
+      this.lineTo(x + w, y + h - radius);
+      this.arcTo(x + w, y + h, x + w - radius, y + h, radius);
+      this.lineTo(x + radius, y + h);
+      this.arcTo(x, y + h, x, y + h - radius, radius);
+      this.lineTo(x, y + radius);
+      this.arcTo(x, y, x + radius, y, radius);
+      this.closePath();
+    };
+  }
+
   // ─── 定数 ────────────────────────────────────────────
   const W = 680, H = 400;
   const GRAVITY = 0.5;
@@ -261,7 +278,7 @@
 
       e.x += e.vx;
       // 折り返し
-      if (e.x < e.originX - e.range || e.x + e.w > e.originX + e.range + e.w) e.vx *= -1;
+      if (e.x < e.originX - e.range || e.x > e.originX + e.range) e.vx *= -1;
 
       // 足場との当たり（簡易：足場端での折り返し）
       for (const p of platforms) {
