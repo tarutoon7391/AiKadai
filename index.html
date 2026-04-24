@@ -63,8 +63,10 @@
   // ─── 定数 ────────────────────────────────────────────
   const W = 680, H = 400;
   const GRAVITY = 0.5;
-  const JUMP_FORCE = -11;
-  const PLAYER_SPEED = 3.5;
+  const JUMP_FORCE = -9;
+  const PLAYER_SPEED = 2.1;
+  const ACCEL = 0.35;
+  const FRICTION = 0.78;
   const WORLD_WIDTH = 3200;
   const GROUND_Y = 340;
   const TILE_H = 20;
@@ -204,11 +206,18 @@
   function updatePlayer() {
     if (player.invincible > 0) player.invincible--;
 
-    // 横移動
+    // 横移動（慣性あり）
     let moving = false;
-    if (keys['ArrowLeft'])  { player.vx = -PLAYER_SPEED; player.dir = -1; moving = true; }
-    else if (keys['ArrowRight']) { player.vx =  PLAYER_SPEED; player.dir =  1; moving = true; }
-    else player.vx = 0;
+    if (keys['ArrowLeft'])  {
+      player.vx = Math.max(player.vx - ACCEL, -PLAYER_SPEED);
+      player.dir = -1; moving = true;
+    } else if (keys['ArrowRight']) {
+      player.vx = Math.min(player.vx + ACCEL,  PLAYER_SPEED);
+      player.dir =  1; moving = true;
+    } else {
+      player.vx *= FRICTION;
+      if (Math.abs(player.vx) < 0.1) player.vx = 0;
+    }
 
     if (moving && player.onGround) {
       if (animTick % 8 === 0) player.walkFrame = (player.walkFrame + 1) % 4;
