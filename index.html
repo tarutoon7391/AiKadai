@@ -241,13 +241,14 @@
     if (player.x < 0) player.x = 0;
     if (player.x + player.w > WORLD_WIDTH) player.x = WORLD_WIDTH - player.w;
 
+    const wasOnGround = player.onGround;
     player.onGround = false;
 
     // 地面
     if (player.y + player.h >= GROUND_Y) {
       player.y = GROUND_Y - player.h;
       player.vy = 0;
-      if (!player.onGround) player.jumpCooldown = JUMP_COOLDOWN;
+      if (!wasOnGround) player.jumpCooldown = JUMP_COOLDOWN;
       player.onGround = true;
     }
 
@@ -259,7 +260,7 @@
         if (prevBottom <= p.y + 1 && player.vy >= 0) {
           player.y = p.y - player.h;
           player.vy = 0;
-          if (!player.onGround) player.jumpCooldown = JUMP_COOLDOWN;
+          if (!wasOnGround) player.jumpCooldown = JUMP_COOLDOWN;
           player.onGround = true;
         } else if (player.vy < 0 && player.y <= p.y + p.h) {
           // 下から頭をぶつけた
