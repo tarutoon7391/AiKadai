@@ -2,11 +2,11 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>AIヒーロー大冒険</title>
+<title>理不尽アクション ― 死んで覚えろ！</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    background: #1a1a2e;
+    background: #0d0d1a;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -15,14 +15,14 @@
     font-family: 'Courier New', monospace;
   }
   h1 {
-    color: #e0e0ff;
-    font-size: 24px;
+    color: #ff4444;
+    font-size: 22px;
     margin-bottom: 10px;
-    text-shadow: 0 0 10px #6060ff;
+    text-shadow: 0 0 12px #ff0000;
   }
   #gameCanvas {
-    border: 3px solid #6060ff;
-    box-shadow: 0 0 20px #6060ff88;
+    border: 3px solid #ff4444;
+    box-shadow: 0 0 20px #ff444488;
     display: block;
   }
   #controls {
@@ -33,9 +33,9 @@
 </style>
 </head>
 <body>
-<h1>🤖 AIヒーロー大冒険 🤖</h1>
+<h1>💀 理不尽アクション ― 死んで覚えろ！ 💀</h1>
 <canvas id="gameCanvas" width="680" height="400"></canvas>
-<div id="controls">← → 移動 ｜ ↑ / スペース ジャンプ</div>
+<div id="controls">← → 移動 ｜ ↑ / スペース ジャンプ ｜ 死んだらスタートに戻る</div>
 <script>
 (function() {
   'use strict';
@@ -46,38 +46,34 @@
   // roundRect ポリフィル（未対応ブラウザ向け）
   if (!CanvasRenderingContext2D.prototype.roundRect) {
     CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
-      const radius = Math.min(r, w/2, h/2);
-      this.moveTo(x + radius, y);
-      this.lineTo(x + w - radius, y);
-      this.arcTo(x + w, y, x + w, y + radius, radius);
-      this.lineTo(x + w, y + h - radius);
-      this.arcTo(x + w, y + h, x + w - radius, y + h, radius);
-      this.lineTo(x + radius, y + h);
-      this.arcTo(x, y + h, x, y + h - radius, radius);
-      this.lineTo(x, y + radius);
-      this.arcTo(x, y, x + radius, y, radius);
+      const rad = Math.min(r, w/2, h/2);
+      this.moveTo(x+rad, y);
+      this.lineTo(x+w-rad, y);   this.arcTo(x+w, y,   x+w, y+rad,   rad);
+      this.lineTo(x+w, y+h-rad); this.arcTo(x+w, y+h, x+w-rad, y+h, rad);
+      this.lineTo(x+rad, y+h);   this.arcTo(x, y+h,   x, y+h-rad,   rad);
+      this.lineTo(x, y+rad);     this.arcTo(x, y,     x+rad, y,      rad);
       this.closePath();
     };
   }
 
-  // ─── 定数 ────────────────────────────────────────────
+  // ─── 定数 ─────────────────────────────────────────────
   const W = 680, H = 400;
-  const GRAVITY = 0.3;
-  const JUMP_FORCE = -9.45;
-  const JUMP_COOLDOWN = 18; // 着地後のジャンプ禁止フレーム数（約0.3秒）
-  const PLAYER_SPEED = 2.1;
-  const ACCEL = 0.35;
-  const FRICTION = 0.78;
-  const WORLD_WIDTH = 3200;
-  const GROUND_Y = 340;
-  const TILE_H = 20;
+  const GRAVITY     = 0.45;
+  const JUMP_FORCE  = -10;
+  const PLAYER_SPEED = 2.8;
+  const ACCEL       = 0.45;
+  const FRICTION    = 0.78;
+  const WORLD_WIDTH = 3000;
+  const GROUND_Y    = 340;
+  const JUMP_CD     = 18;
 
-  // ─── ステート ─────────────────────────────────────────
-  let gameState = 'playing'; // 'playing' | 'gameover' | 'clear'
-  let score = 0;
-  let lives = 3;
-  let cameraX = 0;
-  let animTick = 0;
+  // ─── ゲームステート ───────────────────────────────────
+  let gameState  = 'playing'; // 'playing' | 'gameover' | 'clear'
+  let lives      = 5;
+  let deathCount = 0;
+  let cameraX    = 0;
+  let animTick   = 0;
+  let deathFlash = 0;
 
   // ─── キー入力 ─────────────────────────────────────────
   const keys = {};
@@ -88,84 +84,141 @@
   });
   document.addEventListener('keyup', e => { keys[e.code] = false; });
 
-  // ─── 地形データ ───────────────────────────────────────
-  // {x, y, w, h, color}
-  const platforms = [
-    // 序盤
-    {x:200,  y:280, w:120, h:20, color:'#4a9e4a'},
-    {x:380,  y:240, w:100, h:20, color:'#4a9e4a'},
-    {x:540,  y:200, w:120, h:20, color:'#4a9e4a'},
-    {x:700,  y:260, w:80,  h:20, color:'#4a9e4a'},
-    {x:840,  y:220, w:100, h:20, color:'#4a9e4a'},
+  // ─── 通常足場（静的） ─────────────────────────────────
+  const PLATFORMS = [
+    // 序盤（安全そうなゾーン）
+    {x:  180, y: 280, w: 100, h: 20, color: '#4a9e4a'},
+    {x:  350, y: 240, w:  80, h: 20, color: '#4a9e4a'},
+    // x=450-530 に地面スパイク（初見死ポイント①）
+    {x:  580, y: 210, w: 100, h: 20, color: '#4a9e4a'}, // 安全そうに見える足場
     // 中盤
-    {x:1000, y:280, w:140, h:20, color:'#4a9e4a'},
-    {x:1180, y:230, w:80,  h:20, color:'#4a9e4a'},
-    {x:1320, y:190, w:100, h:20, color:'#4a9e4a'},
-    {x:1480, y:250, w:120, h:20, color:'#4a9e4a'},
-    {x:1650, y:210, w:90,  h:20, color:'#4a9e4a'},
+    {x:  750, y: 260, w:  80, h: 20, color: '#5a8a3a'},
+    {x:  890, y: 230, w:  90, h: 20, color: '#5a8a3a'},
+    // x=970-1060 に消え足場（初見死ポイント②）、下はスパイク穴
+    {x: 1130, y: 265, w: 100, h: 20, color: '#5a8a3a'},
+    {x: 1310, y: 240, w:  80, h: 20, color: '#5a8a3a'},
+    // x=1410 に偽足場トラップ（初見死ポイント③）
     // 後半
-    {x:1800, y:270, w:110, h:20, color:'#9e4a4a'},
-    {x:1960, y:230, w:80,  h:20, color:'#9e4a4a'},
-    {x:2100, y:190, w:120, h:20, color:'#9e4a4a'},
-    {x:2280, y:240, w:90,  h:20, color:'#9e4a4a'},
-    {x:2450, y:200, w:110, h:20, color:'#9e4a4a'},
-    // 終盤
-    {x:2640, y:260, w:80,  h:20, color:'#9e9e4a'},
-    {x:2780, y:220, w:100, h:20, color:'#9e9e4a'},
-    {x:2930, y:180, w:120, h:20, color:'#9e9e4a'},
-    // ゴール台
-    {x:3050, y:280, w:80,  h:60, color:'#cc8800'},
+    {x: 1600, y: 225, w:  90, h: 20, color: '#8a5a3a'},
+    {x: 1760, y: 265, w:  90, h: 20, color: '#8a5a3a'},
+    {x: 1920, y: 230, w: 100, h: 20, color: '#8a5a3a'},
+    // x=2040 動く天井トラップ
+    {x: 2140, y: 270, w: 110, h: 20, color: '#8a5a3a'},
+    {x: 2310, y: 240, w:  80, h: 20, color: '#8a4a8a'},
+    {x: 2470, y: 205, w:  90, h: 20, color: '#8a4a8a'},
+    {x: 2640, y: 250, w:  80, h: 20, color: '#8a4a8a'},
+    // ゴール区間
+    {x: 2810, y: 270, w: 100, h: 20, color: '#aa7700'},
+    {x: 2960, y: 280, w:  80, h: 60, color: '#aa7700'}, // ゴール台
   ];
 
-  // ─── コイン ───────────────────────────────────────────
-  function makeCoin(x, y) { return {x, y, r:8, collected:false}; }
-  let coins = [
-    makeCoin(220, 260), makeCoin(240, 260), makeCoin(260, 260),
-    makeCoin(400, 220), makeCoin(420, 220),
-    makeCoin(560, 180), makeCoin(580, 180), makeCoin(600, 180),
-    makeCoin(720, 240), makeCoin(740, 240),
-    makeCoin(860, 200), makeCoin(880, 200),
-    makeCoin(1020, 260), makeCoin(1040, 260), makeCoin(1060, 260),
-    makeCoin(1190, 210), makeCoin(1210, 210),
-    makeCoin(1340, 170), makeCoin(1360, 170), makeCoin(1380, 170),
-    makeCoin(1500, 230), makeCoin(1520, 230),
-    makeCoin(1660, 190), makeCoin(1680, 190),
-    makeCoin(1820, 250), makeCoin(1840, 250), makeCoin(1860, 250),
-    makeCoin(1970, 210), makeCoin(1990, 210),
-    makeCoin(2120, 170), makeCoin(2140, 170), makeCoin(2160, 170),
-    makeCoin(2300, 220), makeCoin(2320, 220),
-    makeCoin(2470, 180), makeCoin(2490, 180),
-    makeCoin(2660, 240), makeCoin(2680, 240),
-    makeCoin(2800, 200), makeCoin(2820, 200),
-    makeCoin(2950, 160), makeCoin(2970, 160), makeCoin(2990, 160),
+  // ─── スパイク（触れたら即死） ─────────────────────────
+  // dir: 'up'=上向き(地面), 'down'=下向き(天井)
+  const SPIKES = [
+    // 【初見死①】安全そうな地面に紛れ込んだスパイク（コインで誘導）
+    {x: 450, y: GROUND_Y - 20, w:  80, h: 20, dir: 'up'},
+    // 消え足場の下の穴（スパイク群）
+    {x: 980, y: GROUND_Y - 20, w: 100, h: 20, dir: 'up'},
+    // 【初見死③補助】偽足場の下にスパイク
+    {x:1420, y: GROUND_Y - 20, w:  80, h: 20, dir: 'up'},
+    // 後半地面スパイク（隠れてる）
+    {x:1690, y: GROUND_Y - 20, w:  60, h: 20, dir: 'up'},
+    // 【初見死③のコア】足場上に着地点スパイク：x=1920の足場の上
+    {x:1930, y: 230 - 20,      w:  40, h: 20, dir: 'up'},
+    // 後半地面スパイク
+    {x:2200, y: GROUND_Y - 20, w:  80, h: 20, dir: 'up'},
+    // ゴール直前の最後の罠
+    {x:2820, y: 270 - 20,      w:  30, h: 20, dir: 'up'},
   ];
-  const TOTAL_COINS = coins.length;
 
-  // ─── 敵 ───────────────────────────────────────────────
-  function makeEnemy(x, y, range) {
-    return {x, y, w:28, h:28, vx:-1, originX:x, range, alive:true, stomped:false, stompTimer:0};
+  // ─── 消える足場（踏むと消える、数秒後復活） ──────────
+  function makeVanishPlatforms() {
+    return [
+      // 【初見死②のコア】ここを踏むと消えてスパイク穴に落ちる
+      {x:  970, y: 240, w: 90, h: 20, color: '#4a9e4a', state: 'solid', timer: 0, restoreTimer: 0},
+      // 後半の消え足場
+      {x: 1840, y: 255, w: 80, h: 20, color: '#8a5a3a', state: 'solid', timer: 0, restoreTimer: 0},
+      {x: 2390, y: 195, w: 70, h: 20, color: '#8a4a8a', state: 'solid', timer: 0, restoreTimer: 0},
+    ];
   }
-  let enemies = [
-    makeEnemy(300,  GROUND_Y - 28, 120),
-    makeEnemy(600,  GROUND_Y - 28, 100),
-    makeEnemy(750,  GROUND_Y - 28, 80),
-    makeEnemy(900,  GROUND_Y - 28, 120),
-    makeEnemy(560,  200 - 28,      80),   // 足場上
-    makeEnemy(1050, GROUND_Y - 28, 130),
-    makeEnemy(1200, GROUND_Y - 28, 100),
-    makeEnemy(1340, 190 - 28,      80),
-    makeEnemy(1500, GROUND_Y - 28, 120),
-    makeEnemy(1700, GROUND_Y - 28, 150),
-    makeEnemy(1820, 270 - 28,      90),
-    makeEnemy(1900, GROUND_Y - 28, 100),
-    makeEnemy(2050, GROUND_Y - 28, 130),
-    makeEnemy(2200, GROUND_Y - 28, 120),
-    makeEnemy(2320, 240 - 28,      70),
-    makeEnemy(2500, GROUND_Y - 28, 130),
-    makeEnemy(2650, GROUND_Y - 28, 100),
-    makeEnemy(2800, GROUND_Y - 28, 140),
-    makeEnemy(2950, 180 - 28,      100),
-  ];
+
+  // ─── 偽足場（見た目は普通だが乗ると即落下） ─────────
+  function makeFakePlatforms() {
+    return [
+      // 【初見死③のコア】中盤の安全そうな足場、乗ったら落ちてスパイクへ
+      {x: 1410, y: 260, w: 100, h: 20, color: '#4a9e4a', state: 'solid', vy: 0, origY: 260},
+      // 後半の偽足場
+      {x: 2540, y: 215, w:  80, h: 20, color: '#8a4a8a', state: 'solid', vy: 0, origY: 215},
+    ];
+  }
+
+  // ─── 動く障害物（突然スライドしてくる壁・天井） ───────
+  // type: 'hwall'=横スライド, 'vceil'=上から落ちる天井
+  function makeMovingObstacles() {
+    return [
+      // 【序盤罠】x=580の足場に乗ると右から壁が高速スライドイン
+      {
+        type: 'hwall',
+        x: 800, y: 175, w: 30, h: 155,
+        origX: 800, targetX: 660,
+        vx: 0, active: false, triggered: false,
+        triggerX: 545, color: '#882222'
+      },
+      // 【後半罠】x=2140の足場に乗ると天井が急落下
+      {
+        type: 'vceil',
+        x: 2140, y: -70, w: 110, h: 55,
+        origY: -70, targetY: 225,
+        vy: 0, active: false, triggered: false,
+        triggerX: 2100, falling: false, retractTimer: 0, color: '#882222'
+      },
+    ];
+  }
+
+  // ─── コイン（罠コイン含む） ───────────────────────────
+  function makeCoins() {
+    return [
+      // 序盤：安全コイン（油断させる）
+      {x: 200, y: 260, r: 8, collected: false},
+      {x: 225, y: 260, r: 8, collected: false},
+      {x: 368, y: 220, r: 8, collected: false},
+      // 【罠コイン①】スパイクの手前においてプレイヤーを引き寄せる
+      {x: 455, y: GROUND_Y - 38, r: 8, collected: false},
+      {x: 478, y: GROUND_Y - 38, r: 8, collected: false},
+      // 安全コイン
+      {x: 595, y: 190, r: 8, collected: false},
+      {x: 618, y: 190, r: 8, collected: false},
+      {x: 765, y: 240, r: 8, collected: false},
+      {x: 904, y: 210, r: 8, collected: false},
+      // 【罠コイン②】消え足場の上に置く（乗ると消えてスパイクへ）
+      {x: 1000, y: 220, r: 8, collected: false},
+      {x: 1020, y: 220, r: 8, collected: false},
+      // 安全コイン
+      {x: 1145, y: 245, r: 8, collected: false},
+      {x: 1325, y: 218, r: 8, collected: false},
+      // 【罠コイン③】偽足場の上に置く
+      {x: 1445, y: 238, r: 8, collected: false},
+      // 後半コイン
+      {x: 1615, y: 205, r: 8, collected: false},
+      {x: 1775, y: 245, r: 8, collected: false},
+      // 【罠コイン④】足場上スパイクの真上に置く（死にコイン）
+      {x: 1942, y: 208, r: 8, collected: false},
+      {x: 2155, y: 250, r: 8, collected: false},
+      {x: 2325, y: 218, r: 8, collected: false},
+      {x: 2485, y: 183, r: 8, collected: false},
+      {x: 2655, y: 228, r: 8, collected: false},
+      {x: 2826, y: 248, r: 8, collected: false},
+    ];
+  }
+
+  let vanishPlatforms  = makeVanishPlatforms();
+  let fakePlatforms    = makeFakePlatforms();
+  let movingObstacles  = makeMovingObstacles();
+  let coins            = makeCoins();
+  const TOTAL_COINS    = makeCoins().length;
+
+  const goalX   = 2995;
+  let goalReached = false;
 
   // ─── プレイヤー ───────────────────────────────────────
   function makePlayer() {
@@ -174,34 +227,78 @@
       w: 28, h: 36,
       vx: 0, vy: 0,
       onGround: false,
-      dir: 1,        // 1=右, -1=左
+      dir: 1,
       walkFrame: 0,
-      invincible: 0, // 無敵フレーム数
-      jumpCooldown: 0, // ジャンプクールタイム
+      invincible: 0,
+      jumpCooldown: 0,
     };
   }
   let player = makePlayer();
 
-  // ─── ゴール旗 ─────────────────────────────────────────
-  const goalX = 3090;
-  let goalReached = false;
+  // ─── トラップリセット ─────────────────────────────────
+  function resetTraps() {
+    vanishPlatforms = makeVanishPlatforms();
+    fakePlatforms   = makeFakePlatforms();
+    movingObstacles = makeMovingObstacles();
+  }
 
   // ─── ゲームリスタート ──────────────────────────────────
   function restartGame() {
-    score = 0;
-    lives = 3;
-    cameraX = 0;
-    animTick = 0;
+    lives      = 5;
+    deathCount = 0;
+    cameraX    = 0;
+    animTick   = 0;
     goalReached = false;
-    gameState = 'playing';
-    player = makePlayer();
-    coins = coins.map(c => ({...c, collected:false}));
-    enemies = enemies.map(e => ({...e, alive:true, stomped:false, stompTimer:0, x:e.originX, vx:-1}));
+    gameState  = 'playing';
+    deathFlash = 0;
+    player     = makePlayer();
+    coins      = makeCoins();
+    resetTraps();
   }
 
   // ─── AABB衝突判定 ─────────────────────────────────────
-  function rectOverlap(ax,ay,aw,ah, bx,by,bw,bh) {
+  function rectOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
     return ax < bx+bw && ax+aw > bx && ay < by+bh && ay+ah > by;
+  }
+
+  // ─── 残機減少（死亡処理） ──────────────────────────────
+  function loseLife() {
+    if (player.invincible > 0) return;
+    deathCount++;
+    deathFlash = 25;
+    lives--;
+    if (lives <= 0) {
+      lives = 0;
+      gameState = 'gameover';
+      return;
+    }
+    // スタートに戻る（しょぼんスタイル）
+    player = makePlayer();
+    cameraX = 0;
+    player.invincible = 60;
+    resetTraps();
+  }
+
+  // ─── 足場衝突ヘルパー ─────────────────────────────────
+  // 戻り値: true = 上から乗った
+  function collidePlatform(px, py, pw, ph, wasOnGround) {
+    if (!rectOverlap(player.x, player.y, player.w, player.h, px, py, pw, ph)) return false;
+    const prevBottom = player.y + player.h - player.vy;
+    if (prevBottom <= py + 2 && player.vy >= 0) {
+      player.y  = py - player.h;
+      player.vy = 0;
+      if (!wasOnGround) player.jumpCooldown = JUMP_CD;
+      player.onGround = true;
+      return true;
+    } else if (player.vy < 0 && player.y <= py + ph) {
+      player.y  = py + ph;
+      player.vy = 0;
+    } else {
+      const overlapX = Math.min(player.x + player.w - px, px + pw - player.x);
+      if (player.x + player.w/2 < px + pw/2) player.x -= overlapX;
+      else                                    player.x += overlapX;
+    }
+    return false;
   }
 
   // ─── プレイヤー更新 ────────────────────────────────────
@@ -209,22 +306,20 @@
     if (player.invincible > 0) player.invincible--;
     if (player.jumpCooldown > 0) player.jumpCooldown--;
 
-    // 横移動（慣性あり）
-    let moving = false;
-    if (keys['ArrowLeft'])  {
+    // 横移動
+    if (keys['ArrowLeft']) {
       player.vx = Math.max(player.vx - ACCEL, -PLAYER_SPEED);
-      player.dir = -1; moving = true;
+      player.dir = -1;
     } else if (keys['ArrowRight']) {
       player.vx = Math.min(player.vx + ACCEL,  PLAYER_SPEED);
-      player.dir =  1; moving = true;
+      player.dir =  1;
     } else {
       player.vx *= FRICTION;
       if (Math.abs(player.vx) < 0.1) player.vx = 0;
     }
 
-    if (moving && player.onGround) {
-      if (animTick % 8 === 0) player.walkFrame = (player.walkFrame + 1) % 4;
-    }
+    if (player.onGround && player.vx !== 0 && animTick % 8 === 0)
+      player.walkFrame = (player.walkFrame + 1) % 4;
 
     // ジャンプ
     if ((keys['ArrowUp'] || keys['Space']) && player.onGround && player.jumpCooldown === 0) {
@@ -232,101 +327,150 @@
       player.onGround = false;
     }
 
-    // 重力
+    // 物理
     player.vy += GRAVITY;
-    player.x += player.vx;
-    player.y += player.vy;
+    player.x  += player.vx;
+    player.y  += player.vy;
 
-    // 世界端
-    if (player.x < 0) player.x = 0;
-    if (player.x + player.w > WORLD_WIDTH) player.x = WORLD_WIDTH - player.w;
+    if (player.x < 0)                          player.x = 0;
+    if (player.x + player.w > WORLD_WIDTH)     player.x = WORLD_WIDTH - player.w;
 
-    const wasOnGround = player.onGround;
+    const wasOnGround   = player.onGround;
     player.onGround = false;
 
     // 地面
     if (player.y + player.h >= GROUND_Y) {
-      player.y = GROUND_Y - player.h;
+      player.y  = GROUND_Y - player.h;
       player.vy = 0;
-      if (!wasOnGround) player.jumpCooldown = JUMP_COOLDOWN;
+      if (!wasOnGround) player.jumpCooldown = JUMP_CD;
       player.onGround = true;
     }
 
-    // 足場
-    for (const p of platforms) {
-      if (rectOverlap(player.x, player.y, player.w, player.h, p.x, p.y, p.w, p.h)) {
-        // 上から乗る判定
-        const prevBottom = player.y + player.h - player.vy;
-        if (prevBottom <= p.y + 1 && player.vy >= 0) {
-          player.y = p.y - player.h;
-          player.vy = 0;
-          if (!wasOnGround) player.jumpCooldown = JUMP_COOLDOWN;
-          player.onGround = true;
-        } else if (player.vy < 0 && player.y <= p.y + p.h) {
-          // 下から頭をぶつけた
-          player.y = p.y + p.h;
-          player.vy = 0;
-        } else {
-          // 横からめり込み解消
-          const overlapX = Math.min(player.x+player.w - p.x, p.x+p.w - player.x);
-          if (player.x + player.w/2 < p.x + p.w/2) player.x -= overlapX;
-          else player.x += overlapX;
+    // 通常足場
+    for (const p of PLATFORMS) collidePlatform(p.x, p.y, p.w, p.h, wasOnGround);
+
+    // 消え足場
+    for (const p of vanishPlatforms) {
+      if (p.state === 'gone') continue;
+      const landed = collidePlatform(p.x, p.y, p.w, p.h, wasOnGround);
+      if (landed && p.state === 'solid') {
+        p.state = 'shaking';
+        p.timer = 55;
+      }
+    }
+
+    // 偽足場
+    for (const p of fakePlatforms) {
+      if (p.y > H + 50) continue;
+      const landed = collidePlatform(p.x, p.y, p.w, p.h, wasOnGround);
+      if (landed && p.state === 'solid') {
+        p.state = 'falling';
+        p.vy    = 0.5;
+      }
+    }
+
+    // 動く障害物との当たり
+    if (player.invincible === 0) {
+      for (const o of movingObstacles) {
+        if (!o.active) continue;
+        if (rectOverlap(player.x, player.y, player.w, player.h, o.x, o.y, o.w, o.h)) {
+          loseLife();
+          return;
+        }
+      }
+    }
+
+    // スパイク（即死）
+    if (player.invincible === 0) {
+      for (const s of SPIKES) {
+        if (rectOverlap(
+          player.x + 3, player.y + 3, player.w - 6, player.h - 6,
+          s.x + 3,      s.y + 3,      s.w - 6,      s.h - 6
+        )) {
+          loseLife();
+          return;
         }
       }
     }
 
     // 落下死
-    if (player.y > H + 100) {
-      loseLife();
+    if (player.y > H + 100) { loseLife(); return; }
+  }
+
+  // ─── 消え足場更新 ─────────────────────────────────────
+  function updateVanishPlatforms() {
+    for (const p of vanishPlatforms) {
+      if (p.state === 'shaking') {
+        p.timer--;
+        if (p.timer <= 0) { p.state = 'gone'; p.restoreTimer = 220; }
+      } else if (p.state === 'gone') {
+        p.restoreTimer--;
+        if (p.restoreTimer <= 0) p.state = 'solid';
+      }
     }
   }
 
-  // ─── 敵更新 ───────────────────────────────────────────
-  function updateEnemies() {
-    for (const e of enemies) {
-      if (!e.alive) continue;
-      if (e.stomped) {
-        e.stompTimer--;
-        if (e.stompTimer <= 0) e.alive = false;
-        continue;
+  // ─── 偽足場更新 ───────────────────────────────────────
+  function updateFakePlatforms() {
+    for (const p of fakePlatforms) {
+      if (p.state !== 'falling') continue;
+      p.vy += 0.6;
+      p.y  += p.vy;
+      if (p.y > H + 100) { p.y = p.origY; p.vy = 0; p.state = 'solid'; }
+    }
+  }
+
+  // ─── 動く障害物更新 ───────────────────────────────────
+  function updateMovingObstacles() {
+    for (const o of movingObstacles) {
+      // トリガー検知
+      if (!o.triggered && player.x > o.triggerX) {
+        o.triggered = true;
+        o.active    = true;
       }
+      if (!o.active) continue;
 
-      e.x += e.vx;
-      // 折り返し
-      if (e.x < e.originX - e.range || e.x > e.originX + e.range) e.vx *= -1;
-
-      // 足場との当たり（簡易：足場端での折り返し）
-      for (const p of platforms) {
-        if (rectOverlap(e.x, e.y, e.w, e.h, p.x, p.y, p.w, p.h)) {
-          const prevBottom = e.y + e.h - 1;
-          if (prevBottom <= p.y + 2) {
-            e.y = p.y - e.h;
-          } else {
-            e.vx *= -1;
+      if (o.type === 'hwall') {
+        // 右から高速スライドイン
+        if (o.x > o.targetX + 1) {
+          o.vx -= 1.0;
+          if (o.vx < -14) o.vx = -14;
+          o.x += o.vx;
+          if (o.x < o.targetX) o.x = o.targetX;
+        }
+        // 停止後、一定時間で引き戻す
+        if (o.x <= o.targetX + 1) {
+          if (o.retractTimer === undefined) o.retractTimer = 80;
+          o.retractTimer--;
+          if (o.retractTimer <= 0) {
+            o.x         = o.origX;
+            o.vx        = 0;
+            o.active    = false;
+            o.triggered = false;
+            o.retractTimer = undefined;
           }
         }
-      }
-
-      // 地面
-      if (e.y + e.h > GROUND_Y) {
-        e.y = GROUND_Y - e.h;
-      }
-
-      // プレイヤーとの当たり
-      if (player.invincible > 0) continue;
-      if (!rectOverlap(player.x, player.y, player.w, player.h, e.x, e.y, e.w, e.h)) continue;
-
-      // 踏み判定：プレイヤー下部が敵上部より上から来た場合
-      const playerBottom = player.y + player.h;
-      const enemyTop = e.y;
-      if (player.vy > 0 && playerBottom - e.h * 0.4 <= enemyTop + 8) {
-        // 踏んだ
-        e.stomped = true;
-        e.stompTimer = 30;
-        player.vy = -7; // 踏んだ反発
-        score += 100;
-      } else {
-        loseLife();
+      } else if (o.type === 'vceil') {
+        // 上から急落下する天井
+        if (!o.falling) { o.falling = true; o.vy = 2; }
+        if (o.y < o.targetY) {
+          o.vy += 0.7;
+          if (o.vy > 18) o.vy = 18;
+          o.y += o.vy;
+          if (o.y >= o.targetY) { o.y = o.targetY; o.retractTimer = 70; }
+        } else if (o.retractTimer > 0) {
+          o.retractTimer--;
+          if (o.retractTimer <= 0) o.vy = -4;
+        } else {
+          o.y += o.vy;
+          if (o.y <= o.origY) {
+            o.y         = o.origY;
+            o.vy        = 0;
+            o.active    = false;
+            o.triggered = false;
+            o.falling   = false;
+          }
+        }
       }
     }
   }
@@ -335,111 +479,176 @@
   function updateCoins() {
     for (const c of coins) {
       if (c.collected) continue;
-      const cx = c.x - c.r, cy = c.y - c.r, cw = c.r*2, ch = c.r*2;
-      if (rectOverlap(player.x, player.y, player.w, player.h, cx, cy, cw, ch)) {
+      if (rectOverlap(player.x, player.y, player.w, player.h, c.x-c.r, c.y-c.r, c.r*2, c.r*2))
         c.collected = true;
-        score += 10;
-      }
     }
   }
 
   // ─── ゴール判定 ───────────────────────────────────────
   function checkGoal() {
-    if (player.x + player.w >= goalX && !goalReached) {
+    if (!goalReached && player.x + player.w >= goalX) {
       goalReached = true;
-      score += coins.filter(c => c.collected).length === TOTAL_COINS ? 500 : 200;
-      gameState = 'clear';
-    }
-  }
-
-  // ─── 残機減少 ─────────────────────────────────────────
-  function loseLife() {
-    lives--;
-    if (lives <= 0) {
-      lives = 0;
-      gameState = 'gameover';
-    } else {
-      // その場で無敵化（テレポートなし）
-      player.invincible = 150;
+      gameState   = 'clear';
     }
   }
 
   // ─── カメラ更新 ───────────────────────────────────────
   function updateCamera() {
-    const target = player.x - W / 3;
-    cameraX = Math.max(0, Math.min(target, WORLD_WIDTH - W));
+    cameraX = Math.max(0, Math.min(player.x - W/3, WORLD_WIDTH - W));
+  }
+
+  // ─── 描画補助 ─────────────────────────────────────────
+  function adjustColor(hex, d) {
+    const r = Math.max(0, Math.min(255, parseInt(hex.slice(1,3),16) + d));
+    const g = Math.max(0, Math.min(255, parseInt(hex.slice(3,5),16) + d));
+    const b = Math.max(0, Math.min(255, parseInt(hex.slice(5,7),16) + d));
+    return `rgb(${r},${g},${b})`;
+  }
+
+  function drawPlatformAt(sx, sy, pw, ph, color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(sx, sy, pw, ph);
+    ctx.fillStyle = adjustColor(color, 40);
+    ctx.fillRect(sx, sy, pw, 5);
+    ctx.fillStyle = adjustColor(color, -40);
+    ctx.fillRect(sx, sy + ph - 4, pw, 4);
   }
 
   // ─── 描画：背景 ───────────────────────────────────────
   function drawBackground() {
-    // 空グラデーション
     const grad = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
-    grad.addColorStop(0, '#1a6baa');
-    grad.addColorStop(1, '#5bc8ff');
+    grad.addColorStop(0, '#0d1a2e');
+    grad.addColorStop(1, '#1a3355');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, GROUND_Y);
 
-    // 雲（視差スクロール）
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    drawCloud(120 - cameraX * 0.2, 50);
-    drawCloud(350 - cameraX * 0.15, 80);
-    drawCloud(580 - cameraX * 0.2, 40);
-    drawCloud(800 - cameraX * 0.18, 70);
-    drawCloud(1050 - cameraX * 0.15, 55);
+    // 不気味な雲
+    ctx.fillStyle = 'rgba(80,80,110,0.4)';
+    for (let i = 0; i < 5; i++) {
+      const cx = ((i * 200 + 80 - cameraX * (0.14 + i * 0.01)) % (W+300) + W+300) % (W+300) - 150;
+      const cy = 40 + i * 15;
+      ctx.beginPath();
+      ctx.arc(cx,    cy,    30, 0, Math.PI*2);
+      ctx.arc(cx+30, cy-10, 25, 0, Math.PI*2);
+      ctx.arc(cx+55, cy,    28, 0, Math.PI*2);
+      ctx.fill();
+    }
 
     // 地面
-    const groundGrad = ctx.createLinearGradient(0, GROUND_Y, 0, H);
-    groundGrad.addColorStop(0, '#5d8a2f');
-    groundGrad.addColorStop(0.15, '#4a6e22');
-    groundGrad.addColorStop(0.16, '#8B5E2A');
-    groundGrad.addColorStop(1, '#6b4420');
-    ctx.fillStyle = groundGrad;
+    const gGrad = ctx.createLinearGradient(0, GROUND_Y, 0, H);
+    gGrad.addColorStop(0,    '#2a3d12');
+    gGrad.addColorStop(0.15, '#1e2d0a');
+    gGrad.addColorStop(0.16, '#3B2210');
+    gGrad.addColorStop(1,    '#2b1a0a');
+    ctx.fillStyle = gGrad;
     ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
-
-    // 地面のライン
-    ctx.strokeStyle = '#3a5a18';
+    ctx.strokeStyle = '#1a2d08';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(0, GROUND_Y + 3);
-    ctx.lineTo(W, GROUND_Y + 3);
+    ctx.moveTo(0, GROUND_Y + 2); ctx.lineTo(W, GROUND_Y + 2);
     ctx.stroke();
   }
 
-  function drawCloud(cx, cy) {
-    const x = ((cx % (W + 300)) + W + 300) % (W + 300) - 150;
-    ctx.beginPath();
-    ctx.arc(x,    cy,    30, 0, Math.PI*2);
-    ctx.arc(x+30, cy-10, 25, 0, Math.PI*2);
-    ctx.arc(x+55, cy,    28, 0, Math.PI*2);
-    ctx.arc(x+25, cy+5,  20, 0, Math.PI*2);
-    ctx.fill();
-  }
-
-  // ─── 描画：足場 ───────────────────────────────────────
+  // ─── 描画：通常足場 ───────────────────────────────────
   function drawPlatforms() {
-    for (const p of platforms) {
+    for (const p of PLATFORMS) {
       const sx = p.x - cameraX;
       if (sx + p.w < 0 || sx > W) continue;
-
-      ctx.fillStyle = p.color;
-      ctx.fillRect(sx, p.y, p.w, p.h);
-      // 上面明るく
-      ctx.fillStyle = adjustColor(p.color, 40);
-      ctx.fillRect(sx, p.y, p.w, 5);
-      // 下面暗く
-      ctx.fillStyle = adjustColor(p.color, -40);
-      ctx.fillRect(sx, p.y + p.h - 4, p.w, 4);
+      drawPlatformAt(sx, p.y, p.w, p.h, p.color);
     }
   }
 
-  function adjustColor(hex, delta) {
-    let r = parseInt(hex.slice(1,3),16);
-    let g = parseInt(hex.slice(3,5),16);
-    let b = parseInt(hex.slice(5,7),16);
-    r = Math.max(0, Math.min(255, r+delta));
-    g = Math.max(0, Math.min(255, g+delta));
-    b = Math.max(0, Math.min(255, b+delta));
-    return `rgb(${r},${g},${b})`;
+  // ─── 描画：消え足場 ───────────────────────────────────
+  function drawVanishPlatforms() {
+    for (const p of vanishPlatforms) {
+      if (p.state === 'gone') continue;
+      const sx = p.x - cameraX;
+      if (sx + p.w < 0 || sx > W) continue;
+      let alpha = 1;
+      let shake = 0;
+      if (p.state === 'shaking') {
+        alpha = Math.max(0.1, p.timer / 55);
+        shake = (Math.random() - 0.5) * 3;
+      }
+      ctx.globalAlpha = alpha;
+      drawPlatformAt(sx + shake, p.y, p.w, p.h, p.color);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // ─── 描画：偽足場（通常足場と全く同じ見た目）──────────
+  function drawFakePlatforms() {
+    for (const p of fakePlatforms) {
+      if (p.y > H + 50) continue;
+      const sx = p.x - cameraX;
+      if (sx + p.w < 0 || sx > W) continue;
+      drawPlatformAt(sx, p.y, p.w, p.h, p.color);
+    }
+  }
+
+  // ─── 描画：スパイク ───────────────────────────────────
+  function drawSpikes() {
+    for (const s of SPIKES) {
+      const sx = s.x - cameraX;
+      if (sx + s.w < 0 || sx > W) continue;
+      const count = Math.max(1, Math.floor(s.w / 14));
+      const sw = s.w / count;
+      for (let i = 0; i < count; i++) {
+        const tx = sx + i * sw;
+        // 本体
+        ctx.fillStyle = '#bb2222';
+        ctx.beginPath();
+        if (s.dir === 'up') {
+          ctx.moveTo(tx,        s.y + s.h);
+          ctx.lineTo(tx + sw/2, s.y);
+          ctx.lineTo(tx + sw,   s.y + s.h);
+        } else {
+          ctx.moveTo(tx,        s.y);
+          ctx.lineTo(tx + sw/2, s.y + s.h);
+          ctx.lineTo(tx + sw,   s.y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        // ハイライト
+        ctx.fillStyle = '#ee5555';
+        ctx.beginPath();
+        if (s.dir === 'up') {
+          ctx.moveTo(tx + sw*0.15, s.y + s.h);
+          ctx.lineTo(tx + sw*0.45, s.y + s.h*0.15);
+          ctx.lineTo(tx + sw*0.3,  s.y + s.h*0.6);
+        } else {
+          ctx.moveTo(tx + sw*0.15, s.y);
+          ctx.lineTo(tx + sw*0.45, s.y + s.h*0.85);
+          ctx.lineTo(tx + sw*0.3,  s.y + s.h*0.4);
+        }
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+  }
+
+  // ─── 描画：動く障害物 ─────────────────────────────────
+  function drawMovingObstacles() {
+    for (const o of movingObstacles) {
+      if (!o.active) continue;
+      const sx = o.x - cameraX;
+      if (sx + o.w < 0 || sx > W) continue;
+      ctx.fillStyle = o.color;
+      ctx.fillRect(sx, o.y, o.w, o.h);
+      // 危険マーク（黄黒縞）
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(sx, o.y, o.w, o.h);
+      ctx.clip();
+      ctx.fillStyle = '#ffaa00';
+      for (let i = -o.h; i < o.w + o.h; i += 20) {
+        ctx.fillRect(sx + i, o.y, 10, o.h);
+      }
+      ctx.restore();
+      ctx.strokeStyle = '#ff2200';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(sx, o.y, o.w, o.h);
+    }
   }
 
   // ─── 描画：コイン ─────────────────────────────────────
@@ -448,20 +657,15 @@
       if (c.collected) continue;
       const sx = c.x - cameraX;
       if (sx < -20 || sx > W + 20) continue;
-
       const bob = Math.sin(animTick * 0.08 + c.x * 0.05) * 3;
-
-      // 外枠
       ctx.fillStyle = '#cc8800';
       ctx.beginPath();
       ctx.ellipse(sx, c.y + bob, c.r, c.r, 0, 0, Math.PI*2);
       ctx.fill();
-      // 内側光沢
       ctx.fillStyle = '#ffdd44';
       ctx.beginPath();
       ctx.ellipse(sx, c.y + bob, c.r * 0.65, c.r * 0.65, 0, 0, Math.PI*2);
       ctx.fill();
-      // ハイライト
       ctx.fillStyle = '#fffaaa';
       ctx.beginPath();
       ctx.ellipse(sx - 2, c.y + bob - 2, c.r * 0.3, c.r * 0.3, 0, 0, Math.PI*2);
@@ -469,132 +673,76 @@
     }
   }
 
-  // ─── 描画：敵 ─────────────────────────────────────────
-  function drawEnemies() {
-    for (const e of enemies) {
-      if (!e.alive) continue;
-      const sx = e.x - cameraX;
-      if (sx + e.w < 0 || sx > W) continue;
-
-      if (e.stomped) {
-        // 踏まれた状態（つぶれた）
-        ctx.fillStyle = '#8B0000';
-        ctx.fillRect(sx, e.y + e.h - 8, e.w, 8);
-        ctx.fillStyle = '#ff3333';
-        ctx.fillRect(sx+2, e.y + e.h - 6, e.w-4, 4);
-        continue;
-      }
-
-      const walk = Math.sin(animTick * 0.18) * 3;
-      const cx = sx + e.w/2;
-      const cy = e.y + e.h/2;
-
-      // 胴体（スライム風）
-      ctx.fillStyle = '#cc2222';
-      ctx.beginPath();
-      ctx.ellipse(cx, cy + 2 + walk*0.3, e.w/2, e.h/2 - walk*0.3, 0, 0, Math.PI*2);
-      ctx.fill();
-
-      // 頭
-      ctx.fillStyle = '#dd4444';
-      ctx.beginPath();
-      ctx.arc(cx, cy - 4 + walk, e.w/2 - 2, 0, Math.PI*2);
-      ctx.fill();
-
-      // 目
-      const eyeOff = e.vx > 0 ? 4 : -4;
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.arc(cx + eyeOff, cy - 6 + walk, 4, 0, Math.PI*2);
-      ctx.fill();
-      ctx.fillStyle = '#000';
-      ctx.beginPath();
-      ctx.arc(cx + eyeOff + (e.vx > 0 ? 1 : -1), cy - 6 + walk, 2, 0, Math.PI*2);
-      ctx.fill();
-
-      // 怒り眉
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      if (e.vx > 0) {
-        ctx.moveTo(cx+1, cy-11+walk); ctx.lineTo(cx+8, cy-9+walk);
-      } else {
-        ctx.moveTo(cx-1, cy-11+walk); ctx.lineTo(cx-8, cy-9+walk);
-      }
-      ctx.stroke();
-
-      // 脚
-      const legAnim = Math.abs(walk) > 1 ? 4 : 0;
-      ctx.fillStyle = '#991111';
-      ctx.fillRect(cx - 8, cy + e.h/2 - 4, 7, 8 + legAnim);
-      ctx.fillRect(cx + 1, cy + e.h/2 - 4, 7, 8 - legAnim);
-    }
+  // ─── 描画：ゴール旗 ───────────────────────────────────
+  function drawGoal() {
+    const sx = goalX - cameraX;
+    if (sx < -50 || sx > W + 50) return;
+    ctx.fillStyle = '#aaaaaa';
+    ctx.fillRect(sx, GROUND_Y - 120, 6, 120);
+    const wave = Math.sin(animTick * 0.12) * 5;
+    ctx.fillStyle = '#ff4444';
+    ctx.beginPath();
+    ctx.moveTo(sx + 6, GROUND_Y - 120);
+    ctx.lineTo(sx + 50 + wave, GROUND_Y - 100 + wave*0.5);
+    ctx.lineTo(sx + 6, GROUND_Y - 80);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('GOAL', sx + 22, GROUND_Y - 98);
   }
 
-  // ─── 描画：プレイヤー（ロボット風AIヒーロー） ──────────
+  // ─── 描画：プレイヤー（AIヒーロー） ──────────────────
   function drawPlayer() {
     if (player.invincible > 0 && Math.floor(player.invincible / 5) % 2 === 0) return;
-
     const sx = player.x - cameraX;
     const sy = player.y;
-    const d = player.dir;
+    const d  = player.dir;
     const cx = sx + player.w / 2;
-    const cy = sy + player.h / 2;
 
-    // 脚アニメーション
     let legL = 0, legR = 0;
     if (player.onGround && player.vx !== 0) {
-      legL = Math.sin(animTick * 0.25) * 6;
-      legR = -Math.sin(animTick * 0.25) * 6;
+      legL =  Math.sin(animTick * 0.25) * 6;
+      legR = -legL;
     }
 
     // ブーツ
     ctx.fillStyle = '#223399';
-    ctx.fillRect(sx + 1,            sy + player.h - 8 + legL, 11, 8);
+    ctx.fillRect(sx + 1,             sy + player.h - 8 + legL, 11, 8);
     ctx.fillRect(sx + player.w - 12, sy + player.h - 8 + legR, 11, 8);
-
     // 脚
     ctx.fillStyle = '#3344bb';
     ctx.fillRect(sx + 3,             sy + player.h - 16 + legL, 9, 10);
     ctx.fillRect(sx + player.w - 12, sy + player.h - 16 + legR, 9, 10);
-
-    // 胴体（青いスーツ）
+    // 胴体
     ctx.fillStyle = '#1155cc';
     ctx.fillRect(sx + 3, sy + 13, player.w - 6, player.h - 25);
-
-    // 胸のロゴ「AI」
+    // 胸ロゴ
     ctx.fillStyle = '#aaddff';
     ctx.font = 'bold 8px monospace';
     ctx.textAlign = 'center';
     ctx.fillText('AI', cx, sy + 23);
-
-    // 腕アニメーション
+    // 腕
     const armSwing = player.vx !== 0 ? Math.sin(animTick * 0.25) * 5 : 0;
     ctx.fillStyle = '#1155cc';
-    // 左腕
-    ctx.fillRect(sx - 2, sy + 14 - armSwing, 5, 12);
-    // 右腕
-    ctx.fillRect(sx + player.w - 3, sy + 14 + armSwing, 5, 12);
-
+    ctx.fillRect(sx - 2,             sy + 14 - armSwing, 5, 12);
+    ctx.fillRect(sx + player.w - 3,  sy + 14 + armSwing, 5, 12);
     // グローブ
     ctx.fillStyle = '#ffddaa';
     ctx.beginPath();
-    ctx.arc(sx,              sy + 24 - armSwing, 4, 0, Math.PI*2);
-    ctx.arc(sx + player.w,   sy + 24 + armSwing, 4, 0, Math.PI*2);
+    ctx.arc(sx,            sy + 24 - armSwing, 4, 0, Math.PI*2);
+    ctx.arc(sx + player.w, sy + 24 + armSwing, 4, 0, Math.PI*2);
     ctx.fill();
-
-    // 頭（ヘルメット）
+    // ヘルメット
     ctx.fillStyle = '#0088ee';
     ctx.beginPath();
     ctx.roundRect(sx + 2, sy + 1, player.w - 4, 14, 5);
     ctx.fill();
-
-    // バイザー（暗い）
+    // バイザー
     ctx.fillStyle = '#001133';
     ctx.beginPath();
     ctx.roundRect(sx + 5, sy + 4, player.w - 10, 8, 3);
     ctx.fill();
-
     // バイザー発光
     ctx.fillStyle = '#00ffcc';
     ctx.globalAlpha = 0.7 + Math.sin(animTick * 0.1) * 0.3;
@@ -602,7 +750,6 @@
     ctx.roundRect(sx + 6, sy + 5, player.w - 12, 6, 2);
     ctx.fill();
     ctx.globalAlpha = 1;
-
     // アンテナ
     ctx.strokeStyle = '#0088ee';
     ctx.lineWidth = 2;
@@ -616,118 +763,110 @@
     ctx.fill();
   }
 
-  // ─── 描画：ゴール旗 ───────────────────────────────────
-  function drawGoal() {
-    const sx = goalX - cameraX;
-    if (sx < -50 || sx > W + 50) return;
-
-    // 柱
-    ctx.fillStyle = '#aaaaaa';
-    ctx.fillRect(sx, GROUND_Y - 120, 6, 120);
-
-    // 旗
-    const flagWave = Math.sin(animTick * 0.12) * 5;
-    ctx.fillStyle = '#ff4444';
-    ctx.beginPath();
-    ctx.moveTo(sx + 6, GROUND_Y - 120);
-    ctx.lineTo(sx + 50 + flagWave, GROUND_Y - 100 + flagWave*0.5);
-    ctx.lineTo(sx + 6, GROUND_Y - 80);
-    ctx.fill();
-
-    // 「GOAL」テキスト
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 10px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('GOAL', sx + 22, GROUND_Y - 100);
-  }
-
   // ─── 描画：UI ─────────────────────────────────────────
   function drawUI() {
-    ctx.fillStyle = 'rgba(0,0,20,0.55)';
-    ctx.fillRect(0, 0, W, 36);
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(0, 0, W, 40);
 
-    ctx.font = 'bold 16px monospace';
+    ctx.font = 'bold 15px monospace';
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#ffdd44';
-    ctx.fillText(`SCORE: ${score}`, 12, 22);
 
+    // 残機
     ctx.fillStyle = '#ff6688';
-    ctx.fillText(`♥ × ${lives}`, 220, 22);
+    ctx.fillText(`♥ × ${lives}`, 10, 26);
 
+    // 死亡回数
+    ctx.fillStyle = '#ff4444';
+    ctx.fillText(`💀 ${deathCount}回`, 105, 26);
+
+    // コイン
     const collected = coins.filter(c => c.collected).length;
     ctx.fillStyle = '#ffcc00';
-    ctx.fillText(`🪙 ${collected}/${TOTAL_COINS}`, 320, 22);
+    ctx.fillText(`🪙 ${collected}/${TOTAL_COINS}`, 235, 26);
 
-    // ミニマップ（進行バー）
+    // 進行バー
     ctx.fillStyle = '#333';
-    ctx.fillRect(450, 12, 210, 10);
-    const progress = player.x / WORLD_WIDTH;
+    ctx.fillRect(390, 15, 270, 10);
+    const progress = Math.min(1, player.x / WORLD_WIDTH);
     ctx.fillStyle = '#00ffcc';
-    ctx.fillRect(450, 12, 210 * progress, 10);
+    ctx.fillRect(390, 15, 270 * progress, 10);
     ctx.strokeStyle = '#888';
     ctx.lineWidth = 1;
-    ctx.strokeRect(450, 12, 210, 10);
+    ctx.strokeRect(390, 15, 270, 10);
     ctx.fillStyle = '#aaa';
     ctx.font = '9px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('PROGRESS', 555, 10);
+    ctx.fillText('PROGRESS', 525, 13);
+
+    // 死亡フラッシュ
+    if (deathFlash > 0) {
+      ctx.fillStyle = `rgba(255,0,0,${(deathFlash / 25) * 0.5})`;
+      ctx.fillRect(0, 0, W, H);
+      deathFlash--;
+    }
   }
 
-  // ─── 描画：ゲームオーバー画面 ─────────────────────────
+  // ─── 描画：ゲームオーバー ─────────────────────────────
   function drawGameOver() {
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
     ctx.fillRect(0, 0, W, H);
-
     ctx.textAlign = 'center';
+
     ctx.fillStyle = '#ff4444';
-    ctx.font = 'bold 52px monospace';
-    ctx.fillText('GAME OVER', W/2, H/2 - 40);
+    ctx.font = 'bold 50px monospace';
+    ctx.fillText('GAME OVER', W/2, H/2 - 50);
 
     ctx.fillStyle = '#ffdd44';
     ctx.font = '20px monospace';
-    ctx.fillText(`スコア: ${score}`, W/2, H/2 + 10);
+    ctx.fillText(`死亡回数: ${deathCount}回`, W/2, H/2 + 5);
+
+    ctx.fillStyle = '#ff9988';
+    ctx.font = '15px monospace';
+    ctx.fillText('諦めるな！死んで覚えろ！', W/2, H/2 + 38);
 
     ctx.fillStyle = '#aaddff';
-    ctx.font = '16px monospace';
-    ctx.fillText('スペースキーでリスタート', W/2, H/2 + 50);
+    ctx.font = '15px monospace';
+    ctx.fillText('スペースキーでリスタート', W/2, H/2 + 68);
   }
 
-  // ─── 描画：クリア画面 ──────────────────────────────────
+  // ─── 描画：クリア ─────────────────────────────────────
   function drawClear() {
-    ctx.fillStyle = 'rgba(0,20,40,0.75)';
+    ctx.fillStyle = 'rgba(0,20,40,0.8)';
     ctx.fillRect(0, 0, W, H);
 
     // 星キラキラ
     ctx.fillStyle = '#ffdd44';
     for (let i = 0; i < 20; i++) {
       const sx = (i * 137 + animTick * 2) % W;
-      const sy = (i * 97 + animTick) % (H - 60);
-      const size = 3 + Math.sin(animTick * 0.1 + i) * 2;
-      drawStar(sx, sy, size);
+      const sy = (i * 97  + animTick)     % (H - 60);
+      drawStar(sx, sy, 3 + Math.sin(animTick * 0.1 + i) * 2);
     }
 
     ctx.textAlign = 'center';
     ctx.fillStyle = '#ffdd00';
-    ctx.font = 'bold 52px monospace';
+    ctx.font = 'bold 44px monospace';
     ctx.shadowColor = '#ff8800';
-    ctx.shadowBlur = 20;
-    ctx.fillText('STAGE CLEAR!', W/2, H/2 - 50);
-    ctx.shadowBlur = 0;
+    ctx.shadowBlur  = 20;
+    ctx.fillText('STAGE CLEAR!', W/2, H/2 - 55);
+    ctx.shadowBlur  = 0;
 
-    ctx.fillStyle = '#aaffcc';
+    ctx.fillStyle = '#ff8888';
     ctx.font = '20px monospace';
-    ctx.fillText(`最終スコア: ${score}`, W/2, H/2 + 5);
+    ctx.fillText(`死亡回数: ${deathCount}回`, W/2, H/2);
 
-    const collected = coins.filter(c => c.collected).length;
-    if (collected === TOTAL_COINS) {
-      ctx.fillStyle = '#ffdd44';
-      ctx.font = '16px monospace';
-      ctx.fillText('✨ コイン全取得ボーナス！ ✨', W/2, H/2 + 35);
-    }
+    const msg =
+      deathCount === 0 ? '完璧！天才すぎる！' :
+      deathCount < 5   ? 'さすが！やるじゃん！' :
+      deathCount < 15  ? 'よく頑張った！' :
+      deathCount < 30  ? 'だいぶ苦労したね...' :
+                         '何回死んでも諦めない精神！';
+    ctx.fillStyle = '#aaffcc';
+    ctx.font = '16px monospace';
+    ctx.fillText(msg, W/2, H/2 + 38);
 
     ctx.fillStyle = '#aaddff';
-    ctx.font = '16px monospace';
-    ctx.fillText('スペースキーでリスタート', W/2, H/2 + 70);
+    ctx.font = '15px monospace';
+    ctx.fillText('スペースキーでリスタート', W/2, H/2 + 72);
   }
 
   function drawStar(x, y, r) {
@@ -738,7 +877,7 @@
       const a = (i * 4 * Math.PI / 5) - Math.PI/2;
       const b = ((i * 4 + 2) * Math.PI / 5) - Math.PI/2;
       if (i === 0) ctx.moveTo(Math.cos(a)*r, Math.sin(a)*r);
-      else ctx.lineTo(Math.cos(a)*r, Math.sin(a)*r);
+      else         ctx.lineTo(Math.cos(a)*r, Math.sin(a)*r);
       ctx.lineTo(Math.cos(b)*r*0.4, Math.sin(b)*r*0.4);
     }
     ctx.closePath();
@@ -753,7 +892,9 @@
 
     if (gameState === 'playing') {
       updatePlayer();
-      updateEnemies();
+      updateVanishPlatforms();
+      updateFakePlatforms();
+      updateMovingObstacles();
       updateCoins();
       checkGoal();
       updateCamera();
@@ -761,9 +902,12 @@
 
     drawBackground();
     drawPlatforms();
+    drawVanishPlatforms();
+    drawFakePlatforms();
+    drawSpikes();
+    drawMovingObstacles();
     drawCoins();
     drawGoal();
-    drawEnemies();
     drawPlayer();
     drawUI();
 
