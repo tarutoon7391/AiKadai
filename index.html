@@ -359,11 +359,8 @@
       lives = 0;
       gameState = 'gameover';
     } else {
-      // リスポーン
-      player.x = Math.max(0, cameraX - 40);
-      player.y = GROUND_Y - player.h;
-      player.vx = 0; player.vy = 0;
-      player.invincible = 90;
+      // その場で無敵化（テレポートなし）
+      player.invincible = 150;
     }
   }
 
