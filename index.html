@@ -162,7 +162,7 @@
         x: 800, y: 175, w: 30, h: 155,
         origX: 800, targetX: 660,
         vx: 0, active: false, triggered: false,
-        triggerX: 545, color: '#882222'
+        triggerX: 545, retractTimer: undefined, color: '#882222'
       },
       // 【後半罠】x=2140の足場に乗ると天井が急落下
       {
@@ -215,7 +215,7 @@
   let fakePlatforms    = makeFakePlatforms();
   let movingObstacles  = makeMovingObstacles();
   let coins            = makeCoins();
-  const TOTAL_COINS    = makeCoins().length;
+  const TOTAL_COINS    = coins.length;
 
   const goalX   = 2995;
   let goalReached = false;
