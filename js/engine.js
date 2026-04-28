@@ -4,6 +4,23 @@ function rectOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
   return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
 }
 
+function tryBreakVceilFromBelow(o) {
+  if (o.type !== 'vceil' || !o.active || !o.settled || o.destroyed) return false;
+  if (player.vy >= 0) return false;
+  if (player.x + player.w <= o.x || player.x >= o.x + o.w) return false;
+
+  const trapBottom = o.y + o.h;
+  const prevTop    = player.y - player.vy;
+  if (prevTop < trapBottom - 2 || player.y > trapBottom) return false;
+
+  player.y = trapBottom;
+  player.vy = 0;
+  o.destroyed = true;
+  o.active    = false;
+  o.vy        = 0;
+  return true;
+}
+
 function collidePlatform(px, py, pw, ph, wasOnGround) {
   if (!rectOverlap(player.x, player.y, player.w, player.h, px, py, pw, ph)) return false;
   const prevBottom = player.y + player.h - player.vy;
@@ -116,6 +133,7 @@ function updatePlayer() {
   if (player.invincible === 0) {
     for (const o of movingObstacles) {
       if (!o.active) continue;
+      if (tryBreakVceilFromBelow(o)) continue;
       if (rectOverlap(player.x, player.y, player.w, player.h, o.x, o.y, o.w, o.h)) {
         loseLife();
         return;
@@ -186,23 +204,17 @@ function updateMovingObstacles() {
         }
       }
     } else if (o.type === 'vceil') {
+      if (o.destroyed) continue;
       if (!o.falling) { o.falling = true; o.vy = 2; }
       if (o.y < o.targetY) {
         o.vy += 0.7;
         if (o.vy > 18) o.vy = 18;
         o.y += o.vy;
-        if (o.y >= o.targetY) { o.y = o.targetY; o.retractTimer = 70; }
-      } else if (o.retractTimer > 0) {
-        o.retractTimer--;
-        if (o.retractTimer <= 0) o.vy = -4;
-      } else {
-        o.y += o.vy;
-        if (o.y <= o.origY) {
-          o.y         = o.origY;
-          o.vy        = 0;
-          o.active    = false;
-          o.triggered = false;
-          o.falling   = false;
+        if (o.y >= o.targetY) {
+          o.y = o.targetY;
+          o.vy = 0;
+          o.settled = true;
+          o.falling = false;
         }
       }
     }
