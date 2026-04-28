@@ -4,20 +4,22 @@ function rectOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
   return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
 }
 
+const VCEIL_BREAK_TOLERANCE = 2;
+
 function tryBreakVceilFromBelow(o) {
-  if (o.type !== 'vceil' || !o.active || !o.settled || o.destroyed) return false;
+  if (o.type !== 'vceil' || !o.active || !o.settled) return false;
   if (player.vy >= 0) return false;
   if (player.x + player.w <= o.x || player.x >= o.x + o.w) return false;
 
   const trapBottom = o.y + o.h;
-  const prevTop    = player.y - player.vy;
-  if (prevTop < trapBottom - 2 || player.y > trapBottom) return false;
+  const playerPrevTop = player.y - player.vy;
+  // 前フレームで天井トラップの下側にいた場合のみ「下から叩いた」とみなす
+  if (playerPrevTop < trapBottom - VCEIL_BREAK_TOLERANCE || player.y > trapBottom) return false;
 
   player.y = trapBottom;
   player.vy = 0;
-  o.destroyed = true;
-  o.active    = false;
-  o.vy        = 0;
+  o.active = false;
+  o.vy = 0;
   return true;
 }
 
@@ -204,7 +206,6 @@ function updateMovingObstacles() {
         }
       }
     } else if (o.type === 'vceil') {
-      if (o.destroyed) continue;
       if (!o.falling) { o.falling = true; o.vy = 2; }
       if (o.y < o.targetY) {
         o.vy += 0.7;
