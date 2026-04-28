@@ -13,6 +13,7 @@ function getVceilSupportPlatform(o) {
     for (const p of platforms) {
       if (include && !include(p)) continue;
       if (o.x + o.w <= p.x || o.x >= p.x + p.w) continue;
+      if (o.y > p.y + VCEIL_BREAK_TOLERANCE) continue;
       if (trapBottom < p.y - VCEIL_BREAK_TOLERANCE || trapBottom > p.y + p.h + VCEIL_BREAK_TOLERANCE) continue;
       return p;
     }
@@ -106,11 +107,12 @@ function updatePlayer() {
     player.onGround = false;
   }
 
+  const playerTopBeforeMove = player.y;
   player.vy += GRAVITY;
   player.x  += player.vx;
   player.y  += player.vy;
   const playerTopAfterMove = player.y;
-  const playerPrevTop = player.y - player.vy;
+  const playerPrevTop = playerTopBeforeMove;
   const playerVyAfterMove = player.vy;
 
   if (player.x < 0)                      player.x = 0;
