@@ -8,7 +8,7 @@ var STAGE_01 = {
   platforms: [
     {x:  180, y: 280, w: 100, h: 20, color: '#4a9e4a'},
     {x:  350, y: 240, w:  80, h: 20, color: '#4a9e4a'},
-    {x:  580, y: 210, w: 100, h: 20, color: '#4a9e4a'},
+    {x:  500, y: 210, w: 100, h: 20, color: '#4a9e4a'},
     {x:  750, y: 260, w:  80, h: 20, color: '#5a8a3a'},
     {x:  890, y: 230, w:  90, h: 20, color: '#5a8a3a'},
     {x: 1130, y: 265, w: 100, h: 20, color: '#5a8a3a'},
