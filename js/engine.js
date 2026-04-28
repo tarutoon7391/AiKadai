@@ -13,7 +13,7 @@ function tryBreakVceilFromBelow(o) {
 
   const trapBottom = o.y + o.h;
   const playerPrevTop = player.y - player.vy;
-  // 前フレームで天井トラップの下側にいた場合のみ「下から叩いた」とみなす
+  // 前フレームで天井トラップの下側にいた場合のみ「下の台を叩いた」とみなす
   if (playerPrevTop < trapBottom - VCEIL_BREAK_TOLERANCE || player.y > trapBottom) return false;
 
   player.y = trapBottom;
