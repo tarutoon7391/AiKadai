@@ -101,7 +101,7 @@ function updatePlayer() {
   }
 
   if (spikeTeleportPending) {
-    let hasRemaining = false;
+    var hasRemaining = false;
     for (const s of SPIKES) {
       if (s.teleportOnPlayerX === undefined || s.teleportToX === undefined) continue;
       if (!s.teleported && player.x > s.teleportOnPlayerX) {

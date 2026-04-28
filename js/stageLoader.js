@@ -5,7 +5,9 @@ var STAGES = [STAGE_01, STAGE_02, STAGE_03];
 function cloneSpikes(spikes) {
   return spikes.map(function(s) {
     var c = Object.assign({}, s);
-    c.teleported = false;
+    if (c.teleportOnPlayerX !== undefined && c.teleportToX !== undefined) {
+      c.teleported = false;
+    }
     return c;
   });
 }
