@@ -2,11 +2,20 @@
 
 var STAGES = [STAGE_01, STAGE_02, STAGE_03];
 
+function cloneSpikes(spikes) {
+  return spikes.map(function(s) {
+    var c = Object.assign({}, s);
+    c.x = s.x;
+    c.teleported = false;
+    return c;
+  });
+}
+
 function loadStage(idx) {
   var stage = STAGES[idx];
   WORLD_WIDTH     = stage.worldWidth;
   PLATFORMS       = stage.platforms;
-  SPIKES          = stage.spikes;
+  SPIKES          = cloneSpikes(stage.spikes);
   vanishPlatforms = stage.makeVanishPlatforms();
   fakePlatforms   = stage.makeFakePlatforms();
   movingObstacles = stage.makeMovingObstacles();
@@ -18,6 +27,7 @@ function loadStage(idx) {
 
 function resetTraps() {
   var stage = STAGES[stageIndex];
+  SPIKES          = cloneSpikes(stage.spikes);
   vanishPlatforms = stage.makeVanishPlatforms();
   fakePlatforms   = stage.makeFakePlatforms();
   movingObstacles = stage.makeMovingObstacles();

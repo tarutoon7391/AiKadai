@@ -94,9 +94,18 @@ function updatePlayer() {
   for (const p of fakePlatforms) {
     if (p.y > H + 50) continue;
     const landed = collidePlatform(p.x, p.y, p.w, p.h, wasOnGround);
-    if (landed && p.state === 'solid') {
+    if (landed && p.state === 'solid' && p.canFall !== false) {
       p.state = 'falling';
       p.vy    = 0.5;
+    }
+  }
+
+  for (const s of SPIKES) {
+    if (s.teleported) continue;
+    if (s.teleportOnPlayerX === undefined || s.teleportToX === undefined) continue;
+    if (player.x > s.teleportOnPlayerX) {
+      s.x = s.teleportToX;
+      s.teleported = true;
     }
   }
 
