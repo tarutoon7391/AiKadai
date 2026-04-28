@@ -8,16 +8,24 @@ const VCEIL_BREAK_TOLERANCE = 2;
 
 function getVceilSupportPlatform(o) {
   const trapBottom = o.y + o.h;
-  const candidates = [];
-  for (const p of PLATFORMS) candidates.push(p);
-  for (const p of vanishPlatforms) if (p.state !== 'gone') candidates.push(p);
-  for (const p of fakePlatforms) if (p.y <= H + 50) candidates.push(p);
 
-  for (const p of candidates) {
-    if (o.x + o.w <= p.x || o.x >= p.x + p.w) continue;
-    if (trapBottom < p.y - VCEIL_BREAK_TOLERANCE || trapBottom > p.y + p.h + VCEIL_BREAK_TOLERANCE) continue;
-    return p;
-  }
+  const findSupport = (platforms, include) => {
+    for (const p of platforms) {
+      if (include && !include(p)) continue;
+      if (o.x + o.w <= p.x || o.x >= p.x + p.w) continue;
+      if (trapBottom < p.y - VCEIL_BREAK_TOLERANCE || trapBottom > p.y + p.h + VCEIL_BREAK_TOLERANCE) continue;
+      return p;
+    }
+    return null;
+  };
+
+  let support = findSupport(PLATFORMS);
+  if (support) return support;
+  support = findSupport(vanishPlatforms, p => p.state !== 'gone');
+  if (support) return support;
+  support = findSupport(fakePlatforms, p => p.y <= H + 50);
+  if (support) return support;
+
   return null;
 }
 
