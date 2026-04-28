@@ -6,17 +6,33 @@ function rectOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
 
 const VCEIL_BREAK_TOLERANCE = 2;
 
-function tryBreakVceilFromBelow(o) {
-  if (o.type !== 'vceil' || !o.active || !o.settled) return false;
-  if (player.vy >= 0) return false;
-  if (player.x + player.w <= o.x || player.x >= o.x + o.w) return false;
-
+function getVceilSupportPlatform(o) {
   const trapBottom = o.y + o.h;
-  const playerPrevTop = player.y - player.vy;
-  // 前フレームで天井トラップの下側にいた場合のみ「下の台を叩いた」とみなす
-  if (playerPrevTop < trapBottom - VCEIL_BREAK_TOLERANCE || player.y > trapBottom) return false;
+  const candidates = [];
+  for (const p of PLATFORMS) candidates.push(p);
+  for (const p of vanishPlatforms) if (p.state !== 'gone') candidates.push(p);
+  for (const p of fakePlatforms) if (p.y <= H + 50) candidates.push(p);
 
-  player.y = trapBottom;
+  for (const p of candidates) {
+    if (o.x + o.w <= p.x || o.x >= p.x + p.w) continue;
+    if (trapBottom < p.y - VCEIL_BREAK_TOLERANCE || trapBottom > p.y + p.h + VCEIL_BREAK_TOLERANCE) continue;
+    return p;
+  }
+  return null;
+}
+
+function tryBreakVceilFromBelow(o, playerPrevTop, playerTopAfterMove, playerVyAfterMove) {
+  if (o.type !== 'vceil' || !o.active || !o.settled) return false;
+  if (playerVyAfterMove >= 0) return false;
+
+  const support = getVceilSupportPlatform(o);
+  if (!support) return false;
+  if (player.x + player.w <= support.x || player.x >= support.x + support.w) return false;
+
+  const supportBottom = support.y + support.h;
+  if (playerPrevTop < supportBottom - VCEIL_BREAK_TOLERANCE || playerTopAfterMove > supportBottom) return false;
+
+  player.y = supportBottom;
   player.vy = 0;
   o.active = false;
   o.vy = 0;
@@ -85,6 +101,9 @@ function updatePlayer() {
   player.vy += GRAVITY;
   player.x  += player.vx;
   player.y  += player.vy;
+  const playerTopAfterMove = player.y;
+  const playerPrevTop = player.y - player.vy;
+  const playerVyAfterMove = player.vy;
 
   if (player.x < 0)                      player.x = 0;
   if (player.x + player.w > WORLD_WIDTH) player.x = WORLD_WIDTH - player.w;
@@ -135,7 +154,7 @@ function updatePlayer() {
   if (player.invincible === 0) {
     for (const o of movingObstacles) {
       if (!o.active) continue;
-      if (tryBreakVceilFromBelow(o)) continue;
+      if (tryBreakVceilFromBelow(o, playerPrevTop, playerTopAfterMove, playerVyAfterMove)) continue;
       if (rectOverlap(player.x, player.y, player.w, player.h, o.x, o.y, o.w, o.h)) {
         loseLife();
         return;
