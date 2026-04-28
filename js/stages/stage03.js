@@ -96,7 +96,7 @@ var STAGE_03 = {
       {
         type: 'vceil',
         x: 2460, y: -70, w: 75, h: 55,
-        origY: -70, targetY: 210,
+        origY: -70, targetY: 173,
         vy: 0, active: false, triggered: false,
         triggerX: 2420, falling: false, retractTimer: 0, color: '#660077'
       },

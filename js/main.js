@@ -109,10 +109,10 @@ function gameLoop() {
   }
 
   if (gameState === 'playing') {
+    updateMovingObstacles();
     updatePlayer();
     updateVanishPlatforms();
     updateFakePlatforms();
-    updateMovingObstacles();
     updateCoins();
     checkGoal();
     updateCamera();
