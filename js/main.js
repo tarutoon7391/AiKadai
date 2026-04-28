@@ -56,7 +56,7 @@ var player;
 var keys = {};
 document.addEventListener('keydown', function(e) {
   keys[e.code] = true;
-  if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'Space'].indexOf(e.code) !== -1)
+  if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'Space', 'KeyA', 'KeyD', 'KeyW'].indexOf(e.code) !== -1)
     e.preventDefault();
 
   if (gameState === 'gameover' && e.code === 'Space') {
