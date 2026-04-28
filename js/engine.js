@@ -44,10 +44,10 @@ function updatePlayer() {
   if (player.invincible > 0) player.invincible--;
   if (player.jumpCooldown > 0) player.jumpCooldown--;
 
-  if (keys['ArrowLeft']) {
+  if (keys['ArrowLeft'] || keys['KeyA']) {
     player.vx = Math.max(player.vx - ACCEL, -PLAYER_SPEED);
     player.dir = -1;
-  } else if (keys['ArrowRight']) {
+  } else if (keys['ArrowRight'] || keys['KeyD']) {
     player.vx = Math.min(player.vx + ACCEL, PLAYER_SPEED);
     player.dir = 1;
   } else {
@@ -58,7 +58,7 @@ function updatePlayer() {
   if (player.onGround && player.vx !== 0 && animTick % 8 === 0)
     player.walkFrame = (player.walkFrame + 1) % 4;
 
-  if ((keys['ArrowUp'] || keys['Space']) && player.onGround && player.jumpCooldown === 0) {
+  if ((keys['ArrowUp'] || keys['Space'] || keys['KeyW']) && player.onGround && player.jumpCooldown === 0) {
     player.vy      = JUMP_FORCE;
     player.onGround = false;
   }
