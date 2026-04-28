@@ -30,7 +30,7 @@ function getVceilSupportPlatform(o) {
   return null;
 }
 
-function tryBreakVceilFromBelow(o, playerPrevTop, playerTopAfterMove, playerVyAfterMove) {
+function tryBreakVceilFromBelow(o, playerTopBeforeMove, playerTopAfterMove, playerVyAfterMove) {
   if (o.type !== 'vceil' || !o.active || !o.settled) return false;
   if (playerVyAfterMove >= 0) return false;
 
@@ -39,7 +39,7 @@ function tryBreakVceilFromBelow(o, playerPrevTop, playerTopAfterMove, playerVyAf
   if (player.x + player.w <= support.x || player.x >= support.x + support.w) return false;
 
   const supportBottom = support.y + support.h;
-  if (playerPrevTop < supportBottom - VCEIL_BREAK_TOLERANCE || playerTopAfterMove > supportBottom) return false;
+  if (playerTopBeforeMove < supportBottom - VCEIL_BREAK_TOLERANCE || playerTopAfterMove > supportBottom) return false;
 
   player.y = supportBottom;
   player.vy = 0;
@@ -112,8 +112,6 @@ function updatePlayer() {
   player.x  += player.vx;
   player.y  += player.vy;
   const playerTopAfterMove = player.y;
-  const playerPrevTop = playerTopBeforeMove;
-  const playerVyAfterMove = player.vy;
 
   if (player.x < 0)                      player.x = 0;
   if (player.x + player.w > WORLD_WIDTH) player.x = WORLD_WIDTH - player.w;
@@ -164,7 +162,7 @@ function updatePlayer() {
   if (player.invincible === 0) {
     for (const o of movingObstacles) {
       if (!o.active) continue;
-      if (tryBreakVceilFromBelow(o, playerPrevTop, playerTopAfterMove, playerVyAfterMove)) continue;
+      if (tryBreakVceilFromBelow(o, playerTopBeforeMove, playerTopAfterMove, player.vy)) continue;
       if (rectOverlap(player.x, player.y, player.w, player.h, o.x, o.y, o.w, o.h)) {
         loseLife();
         return;
