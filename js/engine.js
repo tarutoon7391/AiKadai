@@ -100,13 +100,17 @@ function updatePlayer() {
     }
   }
 
-  for (const s of SPIKES) {
-    if (s.teleported) continue;
-    if (s.teleportOnPlayerX === undefined || s.teleportToX === undefined) continue;
-    if (player.x > s.teleportOnPlayerX) {
-      s.x = s.teleportToX;
-      s.teleported = true;
+  if (spikeTeleportPending) {
+    let hasRemaining = false;
+    for (const s of SPIKES) {
+      if (s.teleportOnPlayerX === undefined || s.teleportToX === undefined) continue;
+      if (!s.teleported && player.x > s.teleportOnPlayerX) {
+        s.x = s.teleportToX;
+        s.teleported = true;
+      }
+      if (!s.teleported) hasRemaining = true;
     }
+    if (!hasRemaining) spikeTeleportPending = false;
   }
 
   if (player.invincible === 0) {
