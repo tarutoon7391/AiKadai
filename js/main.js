@@ -39,6 +39,7 @@ var coins;
 var TOTAL_COINS;
 var goalX;
 var stageStartX;
+var spikeTeleportPending;
 
 // ─── Mutable game state ──────────────────────────────────────────────────────
 var gameState;

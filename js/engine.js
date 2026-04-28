@@ -94,10 +94,23 @@ function updatePlayer() {
   for (const p of fakePlatforms) {
     if (p.y > H + 50) continue;
     const landed = collidePlatform(p.x, p.y, p.w, p.h, wasOnGround);
-    if (landed && p.state === 'solid') {
+    if (landed && p.state === 'solid' && p.canFall !== false) {
       p.state = 'falling';
       p.vy    = 0.5;
     }
+  }
+
+  if (spikeTeleportPending) {
+    var hasRemaining = false;
+    for (const s of SPIKES) {
+      if (s.teleportOnPlayerX === undefined || s.teleportToX === undefined) continue;
+      if (!s.teleported && player.x > s.teleportOnPlayerX) {
+        s.x = s.teleportToX;
+        s.teleported = true;
+      }
+      if (!s.teleported) hasRemaining = true;
+    }
+    if (!hasRemaining) spikeTeleportPending = false;
   }
 
   if (player.invincible === 0) {

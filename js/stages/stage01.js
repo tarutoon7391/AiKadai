@@ -27,7 +27,7 @@ var STAGE_01 = {
   spikes: [
     {x:  450, y: 320, w:  80, h: 20, dir: 'up'},
     {x:  980, y: 320, w: 100, h: 20, dir: 'up'},
-    {x: 1420, y: 320, w:  80, h: 20, dir: 'up'},
+    {x: 1420, y: 320, w:  80, h: 20, dir: 'up', teleportOnPlayerX: 1410, teleportToX: 1520},
     {x: 1690, y: 320, w:  60, h: 20, dir: 'up'},
     {x: 1930, y: 210, w:  40, h: 20, dir: 'up'},
     {x: 2200, y: 320, w:  80, h: 20, dir: 'up'},
@@ -44,7 +44,7 @@ var STAGE_01 = {
 
   makeFakePlatforms: function() {
     return [
-      {x: 1410, y: 260, w: 100, h: 20, color: '#4a9e4a', state: 'solid', vy: 0, origY: 260},
+      {x: 1410, y: 260, w: 100, h: 20, color: '#4a9e4a', state: 'solid', vy: 0, origY: 260, canFall: false},
       {x: 2540, y: 215, w:  80, h: 20, color: '#8a4a8a', state: 'solid', vy: 0, origY: 215},
     ];
   },
