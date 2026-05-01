@@ -27,7 +27,7 @@ var ACCEL        = 0.45;
 var FRICTION     = 0.78;
 var GROUND_Y     = 340;
 var JUMP_CD      = 18;
-var GAME_VERSION = '1.0.1';
+var GAME_VERSION = '1.0.2';
 
 // ─── Stage data globals (populated by stageLoader) ───────────────────────────
 var WORLD_WIDTH;
