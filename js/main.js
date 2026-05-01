@@ -27,7 +27,7 @@ var ACCEL        = 0.45;
 var FRICTION     = 0.78;
 var GROUND_Y     = 340;
 var JUMP_CD      = 18;
-var GAME_VERSION = '1.0.0';
+var GAME_VERSION = '1.0.1';
 
 // ─── Stage data globals (populated by stageLoader) ───────────────────────────
 var WORLD_WIDTH;
@@ -41,6 +41,7 @@ var TOTAL_COINS;
 var goalX;
 var stageStartX;
 var spikeTeleportPending;
+var groundGaps;
 
 // ─── Mutable game state ──────────────────────────────────────────────────────
 var gameState;

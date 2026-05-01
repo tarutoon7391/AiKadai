@@ -46,6 +46,21 @@ function drawBackground() {
   ctx.beginPath();
   ctx.moveTo(0, GROUND_Y + 2); ctx.lineTo(W, GROUND_Y + 2);
   ctx.stroke();
+
+  if (groundGaps && groundGaps.length > 0) {
+    for (const g of groundGaps) {
+      const sx = g.x1 - cameraX;
+      const gw = g.x2 - g.x1;
+      if (sx + gw < 0 || sx > W) continue;
+      const abyss = ctx.createLinearGradient(0, GROUND_Y, 0, H);
+      abyss.addColorStop(0, '#120018');
+      abyss.addColorStop(1, '#000000');
+      ctx.fillStyle = abyss;
+      ctx.fillRect(sx, GROUND_Y, gw, H - GROUND_Y);
+      ctx.fillStyle = '#330044';
+      ctx.fillRect(sx, GROUND_Y, gw, 3);
+    }
+  }
 }
 
 function drawPlatforms() {
@@ -84,6 +99,7 @@ function drawFakePlatforms() {
 
 function drawSpikes() {
   for (const s of SPIKES) {
+    if (s.enabled === false) continue;
     const sx = s.x - cameraX;
     if (sx + s.w < 0 || sx > W) continue;
     const count = Math.max(1, Math.floor(s.w / 14));
@@ -164,21 +180,31 @@ function drawCoins() {
 }
 
 function drawGoal() {
-  const sx = goalX - cameraX;
+  let sx = goalX - cameraX;
+  let baseY = GROUND_Y;
+  let poleH = 120;
+  if (stageIndex === 2) {
+    const goalStand = PLATFORMS.find(function(p) { return p.goalStand; });
+    if (goalStand) {
+      sx = goalStand.x + goalStand.w - 14 - cameraX;
+      baseY = goalStand.y;
+      poleH = 80;
+    }
+  }
   if (sx < -50 || sx > W + 50) return;
   ctx.fillStyle = '#aaaaaa';
-  ctx.fillRect(sx, GROUND_Y - 120, 6, 120);
+  ctx.fillRect(sx, baseY - poleH, 6, poleH);
   const wave = Math.sin(animTick * 0.12) * 5;
   ctx.fillStyle = '#ff4444';
   ctx.beginPath();
-  ctx.moveTo(sx + 6,       GROUND_Y - 120);
-  ctx.lineTo(sx + 50 + wave, GROUND_Y - 100 + wave * 0.5);
-  ctx.lineTo(sx + 6,       GROUND_Y - 80);
+  ctx.moveTo(sx + 6,       baseY - poleH);
+  ctx.lineTo(sx + 50 + wave, baseY - poleH + 20 + wave * 0.5);
+  ctx.lineTo(sx + 6,       baseY - poleH + 40);
   ctx.fill();
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 10px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText('GOAL', sx + 22, GROUND_Y - 98);
+  ctx.fillText('GOAL', sx + 22, baseY - poleH + 22);
 }
 
 function drawUI() {

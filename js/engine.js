@@ -12,6 +12,84 @@ const STAGE01_SAFE_VCEIL_X1 = 2130;
 const STAGE01_SAFE_VCEIL_X2 = 2200;
 const SAFE_VCEIL_LANDING_INSET = 2;
 const SAFE_VCEIL_LANDING_TOLERANCE = 2;
+const GOAL_SPIKE_TRIGGER_MARGIN_X = 8;
+const GOAL_SPIKE_TRIGGER_BOTTOM_OFFSET = 14;
+const GOAL_SPIKE_TRIGGER_WINDOW_TOP = 58;
+const GOAL_SPIKE_MAX_PLAYER_VY = 1;
+const NORMAL_FAKE_FALL_ACCEL = 0.6;
+const BOOSTED_FAKE_FALL_ACCEL = 1.2;
+const GOAL_CRUSHER_ACCELERATION = 1.6;
+const GOAL_CRUSHER_MAX_VELOCITY = 26;
+
+function isOverGroundGap(x1, x2) {
+  if (!groundGaps || groundGaps.length === 0) return false;
+  for (const g of groundGaps) {
+    if (isRangeOverlapping(x1, x2, g.x1, g.x2)) return true;
+  }
+  return false;
+}
+
+function findPlatformByTrapRole(role) {
+  for (const p of PLATFORMS) {
+    if (p.trapRole === role) return p;
+  }
+  return null;
+}
+
+function findSpikeById(id) {
+  for (const s of SPIKES) {
+    if (s.id === id) return s;
+  }
+  return null;
+}
+
+function setStage03PurpleFirstSafe() {
+  const p = findPlatformByTrapRole('purpleFirst');
+  if (!p || p.purpleFirstSafe) return;
+  p.purpleFirstSafe = true;
+  p.color = p.safeColor || '#2fbf4a';
+  const spike = findSpikeById('purpleFirstSpike');
+  if (spike) spike.enabled = false;
+}
+
+function sendPlayerToStageStart() {
+  player = makePlayer();
+  cameraX = 0;
+  player.invincible = 30;
+  resetTraps();
+}
+
+function triggerPurpleFirstPlatformDeath(p) {
+  const spike = findSpikeById('purpleFirstSpike');
+  if (spike) {
+    spike.enabled = true;
+    spike.x = p.x;
+    spike.y = p.y - spike.h;
+  }
+  loseLife();
+}
+
+function updateStage03GoalSpike() {
+  if (stageIndex !== 2) return;
+  const spike = findSpikeById('goalRocketSpike');
+  if (!spike) return;
+  const shouldLaunch = !spike.launched &&
+    isRangeOverlapping(player.x, player.x + player.w, spike.x - GOAL_SPIKE_TRIGGER_MARGIN_X, spike.x + spike.w + GOAL_SPIKE_TRIGGER_MARGIN_X) &&
+    player.y + player.h <= spike.y + GOAL_SPIKE_TRIGGER_BOTTOM_OFFSET &&
+    player.y >= spike.y - GOAL_SPIKE_TRIGGER_WINDOW_TOP &&
+    player.vy < GOAL_SPIKE_MAX_PLAYER_VY;
+
+  if (shouldLaunch) {
+    spike.enabled = true;
+    spike.launched = true;
+    spike.vy = -24;
+  }
+  if (spike.enabled === false) return;
+  if (spike.launched) {
+    spike.y += spike.vy;
+    if (spike.y + spike.h < -60) spike.enabled = false;
+  }
+}
 
 function isRangeOverlapping(range1Start, range1End, range2Start, range2End) {
   return range1Start < range2End && range1End > range2Start;
@@ -28,6 +106,7 @@ function getJumpMultiplier() {
 }
 
 function isSafeVceilArea(o) {
+  if (o.safeLanding === true) return true;
   return (
     stageIndex === 0 &&
     o.type === 'vceil' &&
@@ -56,6 +135,7 @@ function tryStandOnSafeVceil(obstacle, wasOnGround, playerTopBeforeMove) {
   player.vy = 0;
   if (!wasOnGround) player.jumpCooldown = JUMP_CD;
   player.onGround = true;
+  if (obstacle.safeLandingSwitch === 'purpleFirst') setStage03PurpleFirstSafe();
   return true;
 }
 
@@ -172,14 +252,25 @@ function updatePlayer() {
   const wasOnGround = player.onGround;
   player.onGround = false;
 
-  if (player.y + player.h >= GROUND_Y) {
+  if (!isOverGroundGap(player.x + 2, player.x + player.w - 2) && player.y + player.h >= GROUND_Y) {
     player.y  = GROUND_Y - player.h;
     player.vy = 0;
     if (!wasOnGround) player.jumpCooldown = JUMP_CD;
     player.onGround = true;
   }
 
-  for (const p of PLATFORMS) collidePlatform(p.x, p.y, p.w, p.h, wasOnGround);
+  for (const p of PLATFORMS) {
+    const landed = collidePlatform(p.x, p.y, p.w, p.h, wasOnGround);
+    if (!landed) continue;
+    if (stageIndex === 2 && p.trapRole === 'purpleFirst' && !p.purpleFirstSafe) {
+      triggerPurpleFirstPlatformDeath(p);
+      return;
+    }
+    if (stageIndex === 2 && p.trapRole === 'purpleFifth') {
+      sendPlayerToStageStart();
+      return;
+    }
+  }
 
   for (const p of vanishPlatforms) {
     if (p.state === 'gone') continue;
@@ -195,9 +286,11 @@ function updatePlayer() {
     const landed = collidePlatform(p.x, p.y, p.w, p.h, wasOnGround);
     if (landed && p.state === 'solid' && p.canFall !== false) {
       p.state = 'falling';
-      p.vy    = 0.5;
+      p.vy    = p.fallBoost || 0.5;
     }
   }
+
+  updateStage03GoalSpike();
 
   if (spikeTeleportPending) {
     var hasRemaining = false;
@@ -226,6 +319,7 @@ function updatePlayer() {
 
   if (player.invincible === 0) {
     for (const s of SPIKES) {
+      if (s.enabled === false) continue;
       if (rectOverlap(
         player.x + 3, player.y + 3, player.w - 6, player.h - 6,
         s.x + 3,      s.y + 3,      s.w - 6,      s.h - 6
@@ -254,7 +348,7 @@ function updateVanishPlatforms() {
 function updateFakePlatforms() {
   for (const p of fakePlatforms) {
     if (p.state !== 'falling') continue;
-    p.vy += 0.6;
+    p.vy += p.fallBoost ? BOOSTED_FAKE_FALL_ACCEL : NORMAL_FAKE_FALL_ACCEL;
     p.y  += p.vy;
     if (p.y > H + 100) { p.y = p.origY; p.vy = 0; p.state = 'solid'; }
   }
@@ -262,6 +356,15 @@ function updateFakePlatforms() {
 
 function updateMovingObstacles() {
   for (const o of movingObstacles) {
+    if (o.type === 'goalCrusher' && !o.triggered) {
+      if (
+        isRangeOverlapping(player.x + 2, player.x + player.w - 2, o.x + 3, o.x + o.w - 3) &&
+        player.y + player.h >= GROUND_Y - 1
+      ) {
+        o.triggered = true;
+        o.active = true;
+      }
+    }
     if (!o.triggered && player.x > o.triggerX) {
       o.triggered = true;
       o.active    = true;
@@ -297,6 +400,16 @@ function updateMovingObstacles() {
           o.vy = 0;
           o.settled = true;
           o.falling = false;
+        }
+      }
+    } else if (o.type === 'goalCrusher') {
+      if (o.y < o.targetY) {
+        o.vy += GOAL_CRUSHER_ACCELERATION;
+        if (o.vy > GOAL_CRUSHER_MAX_VELOCITY) o.vy = GOAL_CRUSHER_MAX_VELOCITY;
+        o.y += o.vy;
+        if (o.y >= o.targetY) {
+          o.y = o.targetY;
+          o.vy = 0;
         }
       }
     }
