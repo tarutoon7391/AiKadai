@@ -20,11 +20,31 @@ const NORMAL_FAKE_FALL_ACCEL = 0.6;
 const BOOSTED_FAKE_FALL_ACCEL = 1.2;
 const GOAL_CRUSHER_ACCELERATION = 1.6;
 const GOAL_CRUSHER_MAX_VELOCITY = 26;
+const PLATFORM_UNDERPASS_MARGIN = 2;
 
 function isOverGroundGap(x1, x2) {
   if (!groundGaps || groundGaps.length === 0) return false;
   for (const g of groundGaps) {
-    if (isRangeOverlapping(x1, x2, g.x1, g.x2)) return true;
+    const bounds = getGroundGapBounds(g);
+    if (!bounds) continue;
+    if (isRangeOverlapping(x1, x2, bounds.x1, bounds.x2)) return true;
+  }
+  return false;
+}
+
+function getGroundGapBounds(g) {
+  if (g.x1 !== undefined && g.x2 !== undefined) return {x1: g.x1, x2: g.x2};
+  if (g.x !== undefined && g.w !== undefined) return {x1: g.x, x2: g.x + g.w};
+  return null;
+}
+
+function isOverLethalGroundGap(x1, x2) {
+  if (!groundGaps || groundGaps.length === 0) return false;
+  for (const g of groundGaps) {
+    if (!g.lethal) continue;
+    const bounds = getGroundGapBounds(g);
+    if (!bounds) continue;
+    if (isRangeOverlapping(x1, x2, bounds.x1, bounds.x2)) return true;
   }
   return false;
 }
@@ -43,7 +63,7 @@ function findSpikeById(id) {
   return null;
 }
 
-function setStage03PurpleFirstSafe() {
+function setPurpleFirstSafe() {
   const p = findPlatformByTrapRole('purpleFirst');
   if (!p || p.purpleFirstSafe) return;
   p.purpleFirstSafe = true;
@@ -52,8 +72,9 @@ function setStage03PurpleFirstSafe() {
   if (spike) spike.enabled = false;
 }
 
-function sendPlayerToStageStart() {
+function sendPlayerToStageStart(platform) {
   player = makePlayer();
+  if (platform && platform.sendToX !== undefined) player.x = platform.sendToX;
   cameraX = 0;
   player.invincible = 30;
   resetTraps();
@@ -69,24 +90,39 @@ function triggerPurpleFirstPlatformDeath(p) {
   loseLife();
 }
 
-function updateStage03GoalSpike() {
-  const spike = findSpikeById('goalRocketSpike');
-  if (!spike) return;
-  const shouldLaunch = !spike.launched &&
-    isRangeOverlapping(player.x, player.x + player.w, spike.x - GOAL_SPIKE_TRIGGER_MARGIN_X, spike.x + spike.w + GOAL_SPIKE_TRIGGER_MARGIN_X) &&
-    player.y + player.h <= spike.y + GOAL_SPIKE_TRIGGER_BOTTOM_OFFSET &&
-    player.y >= spike.y - GOAL_SPIKE_TRIGGER_WINDOW_TOP &&
-    player.vy < GOAL_SPIKE_MAX_PLAYER_VY;
+function updateRocketSpikes() {
+  for (const spike of SPIKES) {
+    if (!spike.rocketTriggerRole && spike.id !== 'goalRocketSpike') continue;
 
-  if (shouldLaunch) {
-    spike.enabled = true;
-    spike.launched = true;
-    spike.vy = -24;
-  }
-  if (spike.enabled === false) return;
-  if (spike.launched) {
-    spike.y += spike.vy;
-    if (spike.y + spike.h < -60) spike.enabled = false;
+    if (!spike.launched && spike.rocketTriggerRole) {
+      const basePlatform = findPlatformByTrapRole(spike.rocketTriggerRole);
+      if (basePlatform) {
+        const offsetX = spike.offsetX || 0;
+        spike.x = basePlatform.x + offsetX;
+        if (spike.attachToTop !== false) spike.y = basePlatform.y - spike.h;
+      }
+    }
+
+    const marginX = spike.triggerMarginX !== undefined ? spike.triggerMarginX : GOAL_SPIKE_TRIGGER_MARGIN_X;
+    const bottomOffset = spike.triggerBottomOffset !== undefined ? spike.triggerBottomOffset : GOAL_SPIKE_TRIGGER_BOTTOM_OFFSET;
+    const windowTop = spike.triggerWindowTop !== undefined ? spike.triggerWindowTop : GOAL_SPIKE_TRIGGER_WINDOW_TOP;
+    const maxPlayerVy = spike.triggerMaxPlayerVy !== undefined ? spike.triggerMaxPlayerVy : GOAL_SPIKE_MAX_PLAYER_VY;
+    const shouldLaunch = !spike.launched &&
+      isRangeOverlapping(player.x, player.x + player.w, spike.x - marginX, spike.x + spike.w + marginX) &&
+      player.y + player.h <= spike.y + bottomOffset &&
+      player.y >= spike.y - windowTop &&
+      player.vy < maxPlayerVy;
+
+    if (shouldLaunch) {
+      spike.enabled = true;
+      spike.launched = true;
+      spike.vy = spike.launchVy !== undefined ? spike.launchVy : -24;
+    }
+    if (spike.enabled === false) continue;
+    if (spike.launched) {
+      spike.y += spike.vy;
+      if (spike.y + spike.h < -60) spike.enabled = false;
+    }
   }
 }
 
@@ -134,7 +170,7 @@ function tryStandOnSafeVceil(obstacle, wasOnGround, playerTopBeforeMove) {
   player.vy = 0;
   if (!wasOnGround) player.jumpCooldown = JUMP_CD;
   player.onGround = true;
-  if (obstacle.safeLandingSwitch === 'purpleFirst') setStage03PurpleFirstSafe();
+  if (obstacle.safeLandingSwitch === 'purpleFirst') setPurpleFirstSafe();
   return true;
 }
 
@@ -250,23 +286,37 @@ function updatePlayer() {
 
   const wasOnGround = player.onGround;
   player.onGround = false;
+  const playerFootX1 = player.x + 2;
+  const playerFootX2 = player.x + player.w - 2;
+  const overGap = isOverGroundGap(playerFootX1, playerFootX2);
 
-  if (!isOverGroundGap(player.x + 2, player.x + player.w - 2) && player.y + player.h >= GROUND_Y) {
+  if (!overGap && player.y + player.h >= GROUND_Y) {
     player.y  = GROUND_Y - player.h;
     player.vy = 0;
     if (!wasOnGround) player.jumpCooldown = JUMP_CD;
     player.onGround = true;
   }
+  if (overGap && player.y + player.h >= GROUND_Y && isOverLethalGroundGap(playerFootX1, playerFootX2)) {
+    loseLife();
+    return;
+  }
+
+  if (updatePlatformTraps()) return;
 
   for (const p of PLATFORMS) {
+    if (p.enabled === false) continue;
     const landed = collidePlatform(p.x, p.y, p.w, p.h, wasOnGround);
     if (!landed) continue;
     if (p.trapRole === 'purpleFirst' && !p.purpleFirstSafe) {
       triggerPurpleFirstPlatformDeath(p);
       return;
     }
-    if (p.trapRole === 'purpleFifth') {
-      sendPlayerToStageStart();
+    if (p.trapRole === 'purpleSecond' && p.state !== 'falling') {
+      p.state = 'falling';
+      p.vy = p.fallBoost || 2.8;
+    }
+    if (p.trapRole === 'sendToStart' || p.trapRole === 'purpleFifth') {
+      sendPlayerToStageStart(p);
       return;
     }
   }
@@ -289,7 +339,7 @@ function updatePlayer() {
     }
   }
 
-  updateStage03GoalSpike();
+  updateRocketSpikes();
 
   if (spikeTeleportPending) {
     var hasRemaining = false;
@@ -330,6 +380,46 @@ function updatePlayer() {
   }
 
   if (player.y > H + 100) { loseLife(); return; }
+}
+
+function updatePlatformTraps() {
+  for (const p of PLATFORMS) {
+    if (p.enabled === false) continue;
+
+    if (p.dropTrigger === 'underpass' && p.state !== 'falling') {
+      const underPass = isRangeOverlapping(
+        player.x + PLATFORM_UNDERPASS_MARGIN,
+        player.x + player.w - PLATFORM_UNDERPASS_MARGIN,
+        p.x + PLATFORM_UNDERPASS_MARGIN,
+        p.x + p.w - PLATFORM_UNDERPASS_MARGIN
+      ) && player.y > p.y + p.h - PLATFORM_UNDERPASS_MARGIN;
+      if (underPass) {
+        p.state = 'falling';
+        p.vy = p.fallBoost || 2;
+      }
+    }
+
+    if (p.state !== 'falling') continue;
+    p.vy += p.fallAccel !== undefined ? p.fallAccel : BOOSTED_FAKE_FALL_ACCEL;
+    p.y += p.vy;
+
+    if (p.crushKills === true && player.invincible === 0 &&
+      rectOverlap(player.x, player.y, player.w, player.h, p.x, p.y, p.w, p.h)) {
+      loseLife();
+      return true;
+    }
+
+    if (p.y > H + 120) {
+      if (p.resetAfterFall) {
+        p.y = p.origY;
+        p.vy = 0;
+        p.state = 'solid';
+      } else {
+        p.enabled = false;
+      }
+    }
+  }
+  return false;
 }
 
 function updateVanishPlatforms() {
@@ -409,6 +499,19 @@ function updateMovingObstacles() {
         if (o.y >= o.targetY) {
           o.y = o.targetY;
           o.vy = 0;
+        }
+      }
+    } else if (o.type === 'safeDrop') {
+      if (!o.falling) { o.falling = true; o.vy = 2; }
+      if (o.y < o.targetY) {
+        o.vy += 0.7;
+        if (o.vy > 16) o.vy = 16;
+        o.y += o.vy;
+        if (o.y >= o.targetY) {
+          o.y = o.targetY;
+          o.vy = 0;
+          o.settled = true;
+          o.falling = false;
         }
       }
     }
