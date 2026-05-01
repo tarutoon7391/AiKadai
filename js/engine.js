@@ -5,6 +5,59 @@ function rectOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
 }
 
 const VCEIL_BREAK_TOLERANCE = 2;
+const STAGE01_JUMP_BOOST_X1 = 1920;
+const STAGE01_JUMP_BOOST_X2 = 2000;
+const STAGE01_JUMP_BOOST_MULTIPLIER = 3;
+const STAGE01_SAFE_VCEIL_X1 = 2130;
+const STAGE01_SAFE_VCEIL_X2 = 2200;
+const SAFE_VCEIL_LANDING_INSET = 2;
+const SAFE_VCEIL_LANDING_TOLERANCE = 2;
+
+function isRangeOverlapping(range1Start, range1End, range2Start, range2End) {
+  return range1Start < range2End && range1End > range2Start;
+}
+
+function getJumpMultiplier() {
+  if (
+    stageIndex === 0 &&
+    isRangeOverlapping(player.x, player.x + player.w, STAGE01_JUMP_BOOST_X1, STAGE01_JUMP_BOOST_X2)
+  ) {
+    return STAGE01_JUMP_BOOST_MULTIPLIER;
+  }
+  return 1;
+}
+
+function isSafeVceilArea(o) {
+  return (
+    stageIndex === 0 &&
+    o.type === 'vceil' &&
+    isRangeOverlapping(o.x, o.x + o.w, STAGE01_SAFE_VCEIL_X1, STAGE01_SAFE_VCEIL_X2)
+  );
+}
+
+function tryStandOnSafeVceil(obstacle, wasOnGround, playerTopBeforeMove) {
+  if (!isSafeVceilArea(obstacle)) return false;
+  if (player.vy < 0) return false;
+  if (!isRangeOverlapping(
+    player.x + SAFE_VCEIL_LANDING_INSET,
+    player.x + player.w - SAFE_VCEIL_LANDING_INSET,
+    obstacle.x,
+    obstacle.x + obstacle.w
+  )) return false;
+
+  const playerBottomBeforeMove = playerTopBeforeMove + player.h;
+  const currentBottom = player.y + player.h;
+  const wasBottomAboveOrAtTop = playerBottomBeforeMove <= obstacle.y + SAFE_VCEIL_LANDING_TOLERANCE;
+  const reachedTop = currentBottom >= obstacle.y;
+  const playerTopAboveObstacleTop = player.y < obstacle.y;
+  if (!wasBottomAboveOrAtTop || !reachedTop || !playerTopAboveObstacleTop) return false;
+
+  player.y = obstacle.y - player.h;
+  player.vy = 0;
+  if (!wasOnGround) player.jumpCooldown = JUMP_CD;
+  player.onGround = true;
+  return true;
+}
 
 function getVceilSupportPlatform(o) {
   const trapBottom = o.y + o.h;
@@ -103,7 +156,7 @@ function updatePlayer() {
     player.walkFrame = (player.walkFrame + 1) % 4;
 
   if ((keys['ArrowUp'] || keys['Space'] || keys['KeyW']) && player.onGround && player.jumpCooldown === 0) {
-    player.vy      = JUMP_FORCE;
+    player.vy      = JUMP_FORCE * getJumpMultiplier();
     player.onGround = false;
   }
 
@@ -162,6 +215,7 @@ function updatePlayer() {
   if (player.invincible === 0) {
     for (const o of movingObstacles) {
       if (!o.active) continue;
+      if (tryStandOnSafeVceil(o, wasOnGround, playerTopBeforeMove)) continue;
       if (tryBreakVceilFromBelow(o, playerTopBeforeMove, playerTopAfterMove, player.vy)) continue;
       if (rectOverlap(player.x, player.y, player.w, player.h, o.x, o.y, o.w, o.h)) {
         loseLife();
