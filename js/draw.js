@@ -183,13 +183,11 @@ function drawGoal() {
   let sx = goalX - cameraX;
   let baseY = GROUND_Y;
   let poleH = 120;
-  if (stageIndex === 2) {
-    const goalStand = PLATFORMS.find(function(p) { return p.goalStand; });
-    if (goalStand) {
-      sx = goalStand.x + goalStand.w - 14 - cameraX;
-      baseY = goalStand.y;
-      poleH = 80;
-    }
+  const goalStand = PLATFORMS.find(function(p) { return p.goalStand; });
+  if (goalStand) {
+    sx = goalStand.x + goalStand.w - 14 - cameraX;
+    baseY = goalStand.y;
+    poleH = 80;
   }
   if (sx < -50 || sx > W + 50) return;
   ctx.fillStyle = '#aaaaaa';
