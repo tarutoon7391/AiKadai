@@ -4,6 +4,9 @@ var STAGE_03 = {
   worldWidth: 3200,
   startX: 60,
   goalX: 3188,
+  groundGaps: [
+    {x1: 2300, x2: 2640},
+  ],
 
   platforms: [
     {x:  150, y: 278, w:  80, h: 20, color: '#4a2a6a'},
@@ -19,12 +22,10 @@ var STAGE_03 = {
     {x: 1800, y: 232, w:  75, h: 20, color: '#9900bb'},
     {x: 1945, y: 258, w:  75, h: 20, color: '#9900bb'},
     {x: 2090, y: 235, w:  75, h: 20, color: '#aa00cc'},
-    {x: 2320, y: 255, w:  75, h: 20, color: '#aa00cc'},
-    {x: 2460, y: 228, w:  75, h: 20, color: '#bb00dd'},
-    {x: 2605, y: 255, w:  75, h: 20, color: '#bb00dd'},
+    {x: 2320, y: 255, w:  75, h: 20, color: '#aa00cc', trapRole: 'purpleFirst', safeColor: '#2fbf4a'},
     {x: 2840, y: 235, w:  75, h: 20, color: '#cc00ee'},
-    {x: 2985, y: 262, w:  75, h: 20, color: '#cc00ee'},
-    {x: 3100, y: 272, w:  80, h: 60, color: '#880099'},
+    {x: 2985, y: 262, w:  75, h: 20, color: '#cc00ee', trapRole: 'purpleFifth'},
+    {x: 3100, y: 272, w:  80, h: 60, color: '#c79b1b', goalStand: true},
   ],
 
   spikes: [
@@ -46,7 +47,8 @@ var STAGE_03 = {
     {x: 2550, y: 320, w:  45, h: 20, dir: 'up'},
     {x: 2700, y: 320, w:  90, h: 20, dir: 'up'},
     {x: 2910, y: 320, w:  60, h: 20, dir: 'up'},
-    {x: 3060, y: 320, w:  30, h: 20, dir: 'up'},
+    {x: 2320, y: 235, w:  75, h: 20, dir: 'up', id: 'purpleFirstSpike', enabled: false},
+    {x: 3120, y: 252, w:  42, h: 20, dir: 'up', id: 'goalRocketSpike', vy: 0, launched: false, enabled: false},
     // Platform-top spikes (two evil ones)
     {x:  760, y: 208, w:  35, h: 20, dir: 'up'},
     {x: 1420, y: 208, w:  35, h: 20, dir: 'up'},
@@ -66,6 +68,7 @@ var STAGE_03 = {
     return [
       {x:  900, y: 248, w: 65, h: 20, color: '#6a2a8a', state: 'solid', vy: 0, origY: 248},
       {x: 1955, y: 248, w: 65, h: 20, color: '#9900bb', state: 'solid', vy: 0, origY: 248},
+      {x: 2460, y: 228, w: 75, h: 20, color: '#bb00dd', state: 'solid', vy: 0, origY: 228, fallBoost: 2.8},
       {x: 2840, y: 225, w: 65, h: 20, color: '#cc00ee', state: 'solid', vy: 0, origY: 225},
     ];
   },
@@ -95,10 +98,24 @@ var STAGE_03 = {
       },
       {
         type: 'vceil',
+        x: 2140, y: -70, w: 80, h: 55,
+        origY: -70, targetY: 215,
+        vy: 0, active: false, triggered: false,
+        triggerX: 2120, falling: false, retractTimer: 0, color: '#660077',
+        safeLanding: true, safeLandingSwitch: 'purpleFirst'
+      },
+      {
+        type: 'vceil',
         x: 2460, y: -70, w: 75, h: 55,
         origY: -70, targetY: 173,
         vy: 0, active: false, triggered: false,
         triggerX: 2420, falling: false, retractTimer: 0, color: '#660077'
+      },
+      {
+        type: 'goalCrusher',
+        x: 3100, y: -90, w: 80, h: 60,
+        origY: -90, targetY: 280,
+        vy: 0, active: false, triggered: false, color: '#a37500'
       },
     ];
   },
@@ -126,6 +143,7 @@ var STAGE_03 = {
       {x: 2623, y: 235, r: 8, collected: false},
       {x: 2793, y: 222, r: 8, collected: false},
       {x: 2858, y: 215, r: 8, collected: false},
+      {x: 3010, y: 242, r: 8, collected: false},
       {x: 3003, y: 242, r: 8, collected: false},
     ];
   },

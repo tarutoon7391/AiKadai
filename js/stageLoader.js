@@ -2,6 +2,12 @@
 
 var STAGES = [STAGE_01, STAGE_02, STAGE_03];
 
+function clonePlatforms(platforms) {
+  return platforms.map(function(p) {
+    return Object.assign({}, p);
+  });
+}
+
 function cloneSpikes(spikes) {
   return spikes.map(function(s) {
     var c = Object.assign({}, s);
@@ -15,11 +21,12 @@ function cloneSpikes(spikes) {
 function loadStage(idx) {
   var stage = STAGES[idx];
   WORLD_WIDTH     = stage.worldWidth;
-  PLATFORMS       = stage.platforms;
+  PLATFORMS       = clonePlatforms(stage.platforms);
   SPIKES          = cloneSpikes(stage.spikes);
   spikeTeleportPending = SPIKES.some(function(s) {
     return s.teleportOnPlayerX !== undefined && s.teleportToX !== undefined;
   });
+  groundGaps      = (stage.groundGaps || []).map(function(g) { return Object.assign({}, g); });
   vanishPlatforms = stage.makeVanishPlatforms();
   fakePlatforms   = stage.makeFakePlatforms();
   movingObstacles = stage.makeMovingObstacles();
@@ -31,10 +38,12 @@ function loadStage(idx) {
 
 function resetTraps() {
   var stage = STAGES[stageIndex];
+  PLATFORMS       = clonePlatforms(stage.platforms);
   SPIKES          = cloneSpikes(stage.spikes);
   spikeTeleportPending = SPIKES.some(function(s) {
     return s.teleportOnPlayerX !== undefined && s.teleportToX !== undefined;
   });
+  groundGaps      = (stage.groundGaps || []).map(function(g) { return Object.assign({}, g); });
   vanishPlatforms = stage.makeVanishPlatforms();
   fakePlatforms   = stage.makeFakePlatforms();
   movingObstacles = stage.makeMovingObstacles();
