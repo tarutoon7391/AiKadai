@@ -1,9 +1,9 @@
 // Stage 01 – original stage (ported as-is)
 // GROUND_Y = 340, so GROUND_Y-20 = 320, GROUND_Y-36 = 304
 var STAGE_01 = {
-  worldWidth: 3000,
+  worldWidth: 6000,
   startX: 60,
-  goalX: 2995,
+  goalX: 5995,
   groundGaps: [
     {x: 2300, w: 340, lethal: true},
   ],
