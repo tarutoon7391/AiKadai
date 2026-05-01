@@ -49,8 +49,11 @@ function drawBackground() {
 
   if (groundGaps && groundGaps.length > 0) {
     for (const g of groundGaps) {
-      const sx = g.x1 - cameraX;
-      const gw = g.x2 - g.x1;
+      const x1 = g.x1 !== undefined ? g.x1 : g.x;
+      const x2 = g.x2 !== undefined ? g.x2 : (g.x !== undefined && g.w !== undefined ? g.x + g.w : undefined);
+      if (x1 === undefined || x2 === undefined) continue;
+      const sx = x1 - cameraX;
+      const gw = x2 - x1;
       if (sx + gw < 0 || sx > W) continue;
       const abyss = ctx.createLinearGradient(0, GROUND_Y, 0, H);
       abyss.addColorStop(0, '#120018');
@@ -65,6 +68,7 @@ function drawBackground() {
 
 function drawPlatforms() {
   for (const p of PLATFORMS) {
+    if (p.enabled === false) continue;
     const sx = p.x - cameraX;
     if (sx + p.w < 0 || sx > W) continue;
     drawPlatformAt(sx, p.y, p.w, p.h, p.color);

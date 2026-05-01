@@ -4,6 +4,9 @@ var STAGE_01 = {
   worldWidth: 3000,
   startX: 60,
   goalX: 2995,
+  groundGaps: [
+    {x: 2300, w: 340, lethal: true},
+  ],
 
   platforms: [
     {x:  180, y: 280, w: 100, h: 20, color: '#4a9e4a'},
@@ -17,11 +20,10 @@ var STAGE_01 = {
     {x: 1760, y: 265, w:  90, h: 20, color: '#8a5a3a'},
     {x: 1920, y: 230, w: 100, h: 20, color: '#8a5a3a'},
     {x: 2140, y: 270, w: 110, h: 20, color: '#8a5a3a'},
-    {x: 2310, y: 240, w:  80, h: 20, color: '#8a4a8a'},
-    {x: 2470, y: 205, w:  90, h: 20, color: '#8a4a8a'},
-    {x: 2640, y: 250, w:  80, h: 20, color: '#8a4a8a'},
-    {x: 2810, y: 270, w: 100, h: 20, color: '#aa7700'},
-    {x: 2960, y: 280, w:  80, h: 60, color: '#aa7700'},
+    {x: 2310, y: 240, w:  80, h: 20, color: '#8a4a8a', trapRole: 'purpleFirst', safeColor: '#4a9e4a'},
+    {x: 2470, y: 205, w:  90, h: 20, color: '#8a4a8a', trapRole: 'purpleSecondFastFall', state: 'solid', vy: 0, origY: 205, fallBoost: 2.8, fallAccel: 1.2, resetAfterFall: true},
+    {x: 2810, y: 270, w: 100, h: 20, color: '#aa7700', trapRole: 'goldFirst', state: 'solid', vy: 0, dropTrigger: 'underpass', crushKills: true, fallBoost: 2.2, fallAccel: 1.6},
+    {x: 2960, y: 280, w:  80, h: 60, color: '#aa7700', trapRole: 'purpleFifth', sendToX: 100, goalStand: true},
   ],
 
   spikes: [
@@ -31,7 +33,8 @@ var STAGE_01 = {
     {x: 1690, y: 320, w:  60, h: 20, dir: 'up'},
     {x: 1930, y: 210, w:  40, h: 20, dir: 'up'},
     {x: 2200, y: 320, w:  80, h: 20, dir: 'up'},
-    {x: 2820, y: 250, w:  30, h: 20, dir: 'up'},
+    {x: 2310, y: 220, w:  80, h: 20, dir: 'up', id: 'purpleFirstSpike', enabled: false},
+    {x: 2832, y: 250, w:  36, h: 20, dir: 'up', id: 'goldFirstRocketSpike', vy: 0, launched: false, enabled: false, rocketTriggerRole: 'goldFirst', offsetX: 32, launchVy: -22},
   ],
 
   makeVanishPlatforms: function() {
@@ -64,6 +67,14 @@ var STAGE_01 = {
         origY: -70, targetY: 225,
         vy: 0, active: false, triggered: false,
         triggerX: 2100, falling: false, retractTimer: 0, color: '#882222'
+      },
+      {
+        type: 'safeDrop',
+        x: 2120, y: -70, w: 80, h: 38,
+        origY: -70, targetY: 205,
+        vy: 0, active: false, triggered: false,
+        triggerX: 2100, falling: false, color: '#224488',
+        safeLanding: true, safeLandingSwitch: 'purpleFirst'
       },
     ];
   },
