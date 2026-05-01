@@ -27,6 +27,7 @@ var ACCEL        = 0.45;
 var FRICTION     = 0.78;
 var GROUND_Y     = 340;
 var JUMP_CD      = 18;
+var GAME_VERSION = '1.0.0';
 
 // ─── Stage data globals (populated by stageLoader) ───────────────────────────
 var WORLD_WIDTH;
@@ -69,6 +70,9 @@ document.addEventListener('keydown', function(e) {
   }
 });
 document.addEventListener('keyup', function(e) { keys[e.code] = false; });
+
+var versionNode = document.getElementById('gameVersion');
+if (versionNode) versionNode.textContent = 'v' + GAME_VERSION;
 
 // ─── Stage management ────────────────────────────────────────────────────────
 function initStage(idx) {
