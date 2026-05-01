@@ -7,6 +7,7 @@ function rectOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
 const VCEIL_BREAK_TOLERANCE = 2;
 const STAGE01_JUMP_BOOST_X1 = 1920;
 const STAGE01_JUMP_BOOST_X2 = 2000;
+const STAGE01_JUMP_BOOST_MULTIPLIER = 3;
 const STAGE01_SAFE_VCEIL_X1 = 2130;
 const STAGE01_SAFE_VCEIL_X2 = 2200;
 const SAFE_VCEIL_LANDING_INSET = 2;
@@ -21,7 +22,7 @@ function getJumpMultiplier() {
     stageIndex === 0 &&
     isRangeOverlapping(player.x, player.x + player.w, STAGE01_JUMP_BOOST_X1, STAGE01_JUMP_BOOST_X2)
   ) {
-    return 3;
+    return STAGE01_JUMP_BOOST_MULTIPLIER;
   }
   return 1;
 }
@@ -34,24 +35,24 @@ function isSafeVceilArea(o) {
   );
 }
 
-function tryStandOnSafeVceil(o, wasOnGround, playerTopBeforeMove) {
-  if (!isSafeVceilArea(o)) return false;
+function tryStandOnSafeVceil(obstacle, wasOnGround, playerTopBeforeMove) {
+  if (!isSafeVceilArea(obstacle)) return false;
   if (player.vy < 0) return false;
   if (!isRangeOverlapping(
     player.x + SAFE_VCEIL_LANDING_INSET,
     player.x + player.w - SAFE_VCEIL_LANDING_INSET,
-    o.x,
-    o.x + o.w
+    obstacle.x,
+    obstacle.x + obstacle.w
   )) return false;
 
-  const prevBottom = playerTopBeforeMove + player.h;
+  const playerBottomBeforeMove = playerTopBeforeMove + player.h;
   const currentBottom = player.y + player.h;
-  const wasAboveTop = prevBottom <= o.y + SAFE_VCEIL_LANDING_TOLERANCE;
-  const reachedTop = currentBottom >= o.y;
-  const playerTopAboveObstacleTop = player.y < o.y;
+  const wasAboveTop = playerBottomBeforeMove <= obstacle.y + SAFE_VCEIL_LANDING_TOLERANCE;
+  const reachedTop = currentBottom >= obstacle.y;
+  const playerTopAboveObstacleTop = player.y < obstacle.y;
   if (!wasAboveTop || !reachedTop || !playerTopAboveObstacleTop) return false;
 
-  player.y = o.y - player.h;
+  player.y = obstacle.y - player.h;
   player.vy = 0;
   if (!wasOnGround) player.jumpCooldown = JUMP_CD;
   player.onGround = true;
