@@ -71,8 +71,15 @@ document.addEventListener('keydown', function(e) {
 });
 document.addEventListener('keyup', function(e) { keys[e.code] = false; });
 
-var versionNode = document.getElementById('gameVersion');
-if (versionNode) versionNode.textContent = 'v' + GAME_VERSION;
+function initVersionLabel() {
+  var versionNode = document.getElementById('gameVersion');
+  if (versionNode) versionNode.textContent = 'v' + GAME_VERSION;
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initVersionLabel);
+} else {
+  initVersionLabel();
+}
 
 // ─── Stage management ────────────────────────────────────────────────────────
 function initStage(idx) {
