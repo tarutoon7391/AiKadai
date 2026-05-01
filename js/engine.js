@@ -12,8 +12,8 @@ const STAGE01_SAFE_VCEIL_X2 = 2200;
 const SAFE_VCEIL_LANDING_INSET = 2;
 const SAFE_VCEIL_LANDING_TOLERANCE = 2;
 
-function isRangeOverlapping(x1, x2, y1, y2) {
-  return x1 < y2 && x2 > y1;
+function isRangeOverlapping(range1Start, range1End, range2Start, range2End) {
+  return range1Start < range2End && range1End > range2Start;
 }
 
 function getJumpMultiplier() {
@@ -44,9 +44,13 @@ function tryStandOnSafeVceil(o, wasOnGround) {
     o.x + o.w
   )) return false;
 
+  // Derive previous bottom from current position because updatePlayer already applied vy to player.y.
   const prevBottom = player.y + player.h - player.vy;
   const currentBottom = player.y + player.h;
-  if (prevBottom > o.y + SAFE_VCEIL_LANDING_TOLERANCE || currentBottom < o.y || player.y >= o.y) return false;
+  const wasAboveTop = prevBottom <= o.y + SAFE_VCEIL_LANDING_TOLERANCE;
+  const reachedTop = currentBottom >= o.y;
+  const playerHeadAboveTop = player.y < o.y;
+  if (!wasAboveTop || !reachedTop || !playerHeadAboveTop) return false;
 
   player.y = o.y - player.h;
   player.vy = 0;
