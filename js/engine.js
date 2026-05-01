@@ -5,6 +5,48 @@ function rectOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
 }
 
 const VCEIL_BREAK_TOLERANCE = 2;
+const STAGE01_JUMP_BOOST_X1 = 1920;
+const STAGE01_JUMP_BOOST_X2 = 2000;
+const STAGE01_SAFE_VCEIL_X1 = 2130;
+const STAGE01_SAFE_VCEIL_X2 = 2200;
+
+function isRangeOverlapping(x1, x2, y1, y2) {
+  return x1 < y2 && x2 > y1;
+}
+
+function getJumpMultiplier() {
+  if (
+    stageIndex === 0 &&
+    isRangeOverlapping(player.x, player.x + player.w, STAGE01_JUMP_BOOST_X1, STAGE01_JUMP_BOOST_X2)
+  ) {
+    return 3;
+  }
+  return 1;
+}
+
+function isSafeVceilArea(o) {
+  return (
+    stageIndex === 0 &&
+    o.type === 'vceil' &&
+    isRangeOverlapping(o.x, o.x + o.w, STAGE01_SAFE_VCEIL_X1, STAGE01_SAFE_VCEIL_X2)
+  );
+}
+
+function tryStandOnSafeVceil(o, wasOnGround) {
+  if (!isSafeVceilArea(o)) return false;
+  if (player.vy < 0) return false;
+  if (!isRangeOverlapping(player.x + 2, player.x + player.w - 2, o.x, o.x + o.w)) return false;
+
+  const prevBottom = player.y + player.h - player.vy;
+  const currentBottom = player.y + player.h;
+  if (prevBottom > o.y + 2 || currentBottom < o.y || player.y >= o.y) return false;
+
+  player.y = o.y - player.h;
+  player.vy = 0;
+  if (!wasOnGround) player.jumpCooldown = JUMP_CD;
+  player.onGround = true;
+  return true;
+}
 
 function getVceilSupportPlatform(o) {
   const trapBottom = o.y + o.h;
@@ -103,7 +145,7 @@ function updatePlayer() {
     player.walkFrame = (player.walkFrame + 1) % 4;
 
   if ((keys['ArrowUp'] || keys['Space'] || keys['KeyW']) && player.onGround && player.jumpCooldown === 0) {
-    player.vy      = JUMP_FORCE;
+    player.vy      = JUMP_FORCE * getJumpMultiplier();
     player.onGround = false;
   }
 
@@ -162,6 +204,7 @@ function updatePlayer() {
   if (player.invincible === 0) {
     for (const o of movingObstacles) {
       if (!o.active) continue;
+      if (tryStandOnSafeVceil(o, wasOnGround)) continue;
       if (tryBreakVceilFromBelow(o, playerTopBeforeMove, playerTopAfterMove, player.vy)) continue;
       if (rectOverlap(player.x, player.y, player.w, player.h, o.x, o.y, o.w, o.h)) {
         loseLife();
