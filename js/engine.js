@@ -34,7 +34,7 @@ function isSafeVceilArea(o) {
   );
 }
 
-function tryStandOnSafeVceil(o, wasOnGround) {
+function tryStandOnSafeVceil(o, wasOnGround, playerTopBeforeMove) {
   if (!isSafeVceilArea(o)) return false;
   if (player.vy < 0) return false;
   if (!isRangeOverlapping(
@@ -44,13 +44,12 @@ function tryStandOnSafeVceil(o, wasOnGround) {
     o.x + o.w
   )) return false;
 
-  // Derive previous bottom from current position because updatePlayer already applied vy to player.y.
-  const prevBottom = player.y + player.h - player.vy;
+  const prevBottom = playerTopBeforeMove + player.h;
   const currentBottom = player.y + player.h;
   const wasAboveTop = prevBottom <= o.y + SAFE_VCEIL_LANDING_TOLERANCE;
   const reachedTop = currentBottom >= o.y;
-  const playerHeadAboveTop = player.y < o.y;
-  if (!wasAboveTop || !reachedTop || !playerHeadAboveTop) return false;
+  const playerTopAboveObstacleTop = player.y < o.y;
+  if (!wasAboveTop || !reachedTop || !playerTopAboveObstacleTop) return false;
 
   player.y = o.y - player.h;
   player.vy = 0;
@@ -215,7 +214,7 @@ function updatePlayer() {
   if (player.invincible === 0) {
     for (const o of movingObstacles) {
       if (!o.active) continue;
-      if (tryStandOnSafeVceil(o, wasOnGround)) continue;
+      if (tryStandOnSafeVceil(o, wasOnGround, playerTopBeforeMove)) continue;
       if (tryBreakVceilFromBelow(o, playerTopBeforeMove, playerTopAfterMove, player.vy)) continue;
       if (rectOverlap(player.x, player.y, player.w, player.h, o.x, o.y, o.w, o.h)) {
         loseLife();
