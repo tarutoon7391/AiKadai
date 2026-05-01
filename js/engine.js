@@ -20,6 +20,7 @@ const NORMAL_FAKE_FALL_ACCEL = 0.6;
 const BOOSTED_FAKE_FALL_ACCEL = 1.2;
 const GOAL_CRUSHER_ACCELERATION = 1.6;
 const GOAL_CRUSHER_MAX_VELOCITY = 26;
+const PLATFORM_UNDERPASS_MARGIN = 2;
 
 function isOverGroundGap(x1, x2) {
   if (!groundGaps || groundGaps.length === 0) return false;
@@ -310,11 +311,11 @@ function updatePlayer() {
       triggerPurpleFirstPlatformDeath(p);
       return;
     }
-    if (p.trapRole === 'purpleSecondFastFall' && p.state !== 'falling') {
+    if (p.trapRole === 'purpleSecond' && p.state !== 'falling') {
       p.state = 'falling';
       p.vy = p.fallBoost || 2.8;
     }
-    if (p.trapRole === 'purpleFifth') {
+    if (p.trapRole === 'sendToStart' || p.trapRole === 'purpleFifth') {
       sendPlayerToStageStart(p);
       return;
     }
@@ -386,8 +387,12 @@ function updatePlatformTraps() {
     if (p.enabled === false) continue;
 
     if (p.dropTrigger === 'underpass' && p.state !== 'falling') {
-      const underPass = isRangeOverlapping(player.x + 2, player.x + player.w - 2, p.x + 2, p.x + p.w - 2) &&
-        player.y > p.y + p.h - 2;
+      const underPass = isRangeOverlapping(
+        player.x + PLATFORM_UNDERPASS_MARGIN,
+        player.x + player.w - PLATFORM_UNDERPASS_MARGIN,
+        p.x + PLATFORM_UNDERPASS_MARGIN,
+        p.x + p.w - PLATFORM_UNDERPASS_MARGIN
+      ) && player.y > p.y + p.h - PLATFORM_UNDERPASS_MARGIN;
       if (underPass) {
         p.state = 'falling';
         p.vy = p.fallBoost || 2;

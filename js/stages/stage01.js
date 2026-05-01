@@ -21,9 +21,9 @@ var STAGE_01 = {
     {x: 1920, y: 230, w: 100, h: 20, color: '#8a5a3a'},
     {x: 2140, y: 270, w: 110, h: 20, color: '#8a5a3a'},
     {x: 2310, y: 240, w:  80, h: 20, color: '#8a4a8a', trapRole: 'purpleFirst', safeColor: '#4a9e4a'},
-    {x: 2470, y: 205, w:  90, h: 20, color: '#8a4a8a', trapRole: 'purpleSecondFastFall', state: 'solid', vy: 0, origY: 205, fallBoost: 2.8, fallAccel: 1.2, resetAfterFall: true},
+    {x: 2470, y: 205, w:  90, h: 20, color: '#8a4a8a', trapRole: 'purpleSecond', state: 'solid', vy: 0, origY: 205, fallBoost: 2.8, fallAccel: 1.2, resetAfterFall: true},
     {x: 2810, y: 270, w: 100, h: 20, color: '#aa7700', trapRole: 'goldFirst', state: 'solid', vy: 0, dropTrigger: 'underpass', crushKills: true, fallBoost: 2.2, fallAccel: 1.6},
-    {x: 2960, y: 280, w:  80, h: 60, color: '#aa7700', trapRole: 'purpleFifth', sendToX: 100, goalStand: true},
+    {x: 2960, y: 280, w:  80, h: 60, color: '#aa7700', trapRole: 'sendToStart', sendToX: 100, goalStand: true},
   ],
 
   spikes: [
