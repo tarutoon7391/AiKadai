@@ -35,7 +35,7 @@ function isSafeVceilArea(o) {
   );
 }
 
-function tryStandOnSafeVceil(obstacle, wasOnGround, playerTopBeforeMove) {
+function tryStandOnSafeVceil(obstacle, wasOnGround, playerYBeforeMove) {
   if (!isSafeVceilArea(obstacle)) return false;
   if (player.vy < 0) return false;
   if (!isRangeOverlapping(
@@ -45,12 +45,12 @@ function tryStandOnSafeVceil(obstacle, wasOnGround, playerTopBeforeMove) {
     obstacle.x + obstacle.w
   )) return false;
 
-  const playerBottomBeforeMove = playerTopBeforeMove + player.h;
+  const playerBottomBeforeMove = playerYBeforeMove + player.h;
   const currentBottom = player.y + player.h;
-  const wasAboveTop = playerBottomBeforeMove <= obstacle.y + SAFE_VCEIL_LANDING_TOLERANCE;
+  const wasBottomAboveOrAtTop = playerBottomBeforeMove <= obstacle.y + SAFE_VCEIL_LANDING_TOLERANCE;
   const reachedTop = currentBottom >= obstacle.y;
   const playerTopAboveObstacleTop = player.y < obstacle.y;
-  if (!wasAboveTop || !reachedTop || !playerTopAboveObstacleTop) return false;
+  if (!wasBottomAboveOrAtTop || !reachedTop || !playerTopAboveObstacleTop) return false;
 
   player.y = obstacle.y - player.h;
   player.vy = 0;
