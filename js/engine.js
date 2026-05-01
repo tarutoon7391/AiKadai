@@ -9,6 +9,8 @@ const STAGE01_JUMP_BOOST_X1 = 1920;
 const STAGE01_JUMP_BOOST_X2 = 2000;
 const STAGE01_SAFE_VCEIL_X1 = 2130;
 const STAGE01_SAFE_VCEIL_X2 = 2200;
+const SAFE_VCEIL_LANDING_INSET = 2;
+const SAFE_VCEIL_LANDING_TOLERANCE = 2;
 
 function isRangeOverlapping(x1, x2, y1, y2) {
   return x1 < y2 && x2 > y1;
@@ -35,11 +37,16 @@ function isSafeVceilArea(o) {
 function tryStandOnSafeVceil(o, wasOnGround) {
   if (!isSafeVceilArea(o)) return false;
   if (player.vy < 0) return false;
-  if (!isRangeOverlapping(player.x + 2, player.x + player.w - 2, o.x, o.x + o.w)) return false;
+  if (!isRangeOverlapping(
+    player.x + SAFE_VCEIL_LANDING_INSET,
+    player.x + player.w - SAFE_VCEIL_LANDING_INSET,
+    o.x,
+    o.x + o.w
+  )) return false;
 
   const prevBottom = player.y + player.h - player.vy;
   const currentBottom = player.y + player.h;
-  if (prevBottom > o.y + 2 || currentBottom < o.y || player.y >= o.y) return false;
+  if (prevBottom > o.y + SAFE_VCEIL_LANDING_TOLERANCE || currentBottom < o.y || player.y >= o.y) return false;
 
   player.y = o.y - player.h;
   player.vy = 0;
