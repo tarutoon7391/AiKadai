@@ -143,7 +143,6 @@ var STAGE_03 = {
       {x: 2623, y: 235, r: 8, collected: false},
       {x: 2793, y: 222, r: 8, collected: false},
       {x: 2858, y: 215, r: 8, collected: false},
-      {x: 3010, y: 242, r: 8, collected: false},
       {x: 3003, y: 242, r: 8, collected: false},
     ];
   },
