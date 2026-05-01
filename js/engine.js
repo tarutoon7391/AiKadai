@@ -12,6 +12,14 @@ const STAGE01_SAFE_VCEIL_X1 = 2130;
 const STAGE01_SAFE_VCEIL_X2 = 2200;
 const SAFE_VCEIL_LANDING_INSET = 2;
 const SAFE_VCEIL_LANDING_TOLERANCE = 2;
+const GOAL_SPIKE_TRIGGER_MARGIN_X = 8;
+const GOAL_SPIKE_TRIGGER_BOTTOM_OFFSET = 14;
+const GOAL_SPIKE_TRIGGER_WINDOW_TOP = 58;
+const GOAL_SPIKE_MAX_PLAYER_VY = 1;
+const NORMAL_FAKE_FALL_ACCEL = 0.6;
+const BOOSTED_FAKE_FALL_ACCEL = 1.2;
+const GOAL_CRUSHER_ACCELERATION = 1.6;
+const GOAL_CRUSHER_MAX_VELOCITY = 26;
 
 function isOverGroundGap(x1, x2) {
   if (!groundGaps || groundGaps.length === 0) return false;
@@ -66,10 +74,10 @@ function updateStage03GoalSpike() {
   const spike = findSpikeById('goalRocketSpike');
   if (!spike) return;
   const shouldLaunch = !spike.launched &&
-    isRangeOverlapping(player.x, player.x + player.w, spike.x - 8, spike.x + spike.w + 8) &&
-    player.y + player.h <= spike.y + 14 &&
-    player.y >= spike.y - 58 &&
-    player.vy < 1;
+    isRangeOverlapping(player.x, player.x + player.w, spike.x - GOAL_SPIKE_TRIGGER_MARGIN_X, spike.x + spike.w + GOAL_SPIKE_TRIGGER_MARGIN_X) &&
+    player.y + player.h <= spike.y + GOAL_SPIKE_TRIGGER_BOTTOM_OFFSET &&
+    player.y >= spike.y - GOAL_SPIKE_TRIGGER_WINDOW_TOP &&
+    player.vy < GOAL_SPIKE_MAX_PLAYER_VY;
 
   if (shouldLaunch) {
     spike.enabled = true;
@@ -340,7 +348,7 @@ function updateVanishPlatforms() {
 function updateFakePlatforms() {
   for (const p of fakePlatforms) {
     if (p.state !== 'falling') continue;
-    p.vy += p.fallBoost ? 1.2 : 0.6;
+    p.vy += p.fallBoost ? BOOSTED_FAKE_FALL_ACCEL : NORMAL_FAKE_FALL_ACCEL;
     p.y  += p.vy;
     if (p.y > H + 100) { p.y = p.origY; p.vy = 0; p.state = 'solid'; }
   }
@@ -396,8 +404,8 @@ function updateMovingObstacles() {
       }
     } else if (o.type === 'goalCrusher') {
       if (o.y < o.targetY) {
-        o.vy += 1.6;
-        if (o.vy > 26) o.vy = 26;
+        o.vy += GOAL_CRUSHER_ACCELERATION;
+        if (o.vy > GOAL_CRUSHER_MAX_VELOCITY) o.vy = GOAL_CRUSHER_MAX_VELOCITY;
         o.y += o.vy;
         if (o.y >= o.targetY) {
           o.y = o.targetY;
