@@ -70,7 +70,6 @@ function triggerPurpleFirstPlatformDeath(p) {
 }
 
 function updateStage03GoalSpike() {
-  if (stageIndex !== 2) return;
   const spike = findSpikeById('goalRocketSpike');
   if (!spike) return;
   const shouldLaunch = !spike.launched &&
@@ -262,11 +261,11 @@ function updatePlayer() {
   for (const p of PLATFORMS) {
     const landed = collidePlatform(p.x, p.y, p.w, p.h, wasOnGround);
     if (!landed) continue;
-    if (stageIndex === 2 && p.trapRole === 'purpleFirst' && !p.purpleFirstSafe) {
+    if (p.trapRole === 'purpleFirst' && !p.purpleFirstSafe) {
       triggerPurpleFirstPlatformDeath(p);
       return;
     }
-    if (stageIndex === 2 && p.trapRole === 'purpleFifth') {
+    if (p.trapRole === 'purpleFifth') {
       sendPlayerToStageStart();
       return;
     }
